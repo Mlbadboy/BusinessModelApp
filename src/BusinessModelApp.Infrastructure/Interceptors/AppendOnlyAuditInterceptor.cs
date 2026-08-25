@@ -1,6 +1,4 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using BusinessModelApp.Core.AI;
 using BusinessModelApp.Core.Domain.Commercial;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -30,7 +28,7 @@ namespace BusinessModelApp.Infrastructure.Interceptors
 
             foreach (var entry in context.ChangeTracker.Entries())
             {
-                if (entry.Entity is AuditEvent || entry.Entity is Activity || entry.Entity is BusinessActivity)
+                if (entry.Entity is AuditEvent || entry.Entity is Activity || entry.Entity is BusinessActivity || entry.Entity is AICallRecord)
                 {
                     if (entry.State == EntityState.Modified)
                     {

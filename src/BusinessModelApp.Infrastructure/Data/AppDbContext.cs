@@ -21,6 +21,7 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<Activity> Activities { get; set; }
         public DbSet<AuditEvent> AuditEvents { get; set; }
         public DbSet<BusinessActivity> BusinessActivities { get; set; }
+        public DbSet<BusinessModelApp.Core.AI.AICallRecord> AICallRecords { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -150,6 +151,20 @@ namespace BusinessModelApp.Infrastructure.Data
                       .WithMany()
                       .HasForeignKey(u => u.DefaultWorkspaceId)
                       .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // AICallRecord (Append-only AI telemetry)
+            modelBuilder.Entity<BusinessModelApp.Core.AI.AICallRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Provider).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Model).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.EstimatedCost).HasPrecision(18, 6);
+                entity.Property(e => e.RequestCorrelationId).HasMaxLength(100);
+                entity.Property(e => e.OmniRouteRequestId).HasMaxLength(100);
+
+                entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId, e.CreatedAt });
+                entity.HasIndex(e => e.RequestCorrelationId);
             });
         }
     }

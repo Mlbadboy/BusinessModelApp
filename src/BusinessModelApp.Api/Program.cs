@@ -143,36 +143,22 @@ builder.Services.AddScoped<IStrategyService, MockStrategyService>();
 builder.Services.AddScoped<IAgentService, MockAgentService>();
 builder.Services.AddScoped<IRecommendationService, MockRecommendationService>();
 
-// 8. Register AI Services
-builder.Services.AddHttpClient<GeminiService>();
-builder.Services.AddHttpClient<OpenRouterService>();
-builder.Services.AddHttpClient<MistralService>();
-builder.Services.AddScoped<GeminiService>();
-builder.Services.AddScoped<OpenRouterService>();
-builder.Services.AddScoped<MistralService>();
-builder.Services.AddScoped<AntigravityAIService>();
-builder.Services.AddScoped<LocalLLMService>();
-builder.Services.AddScoped<ModelManagerService>();
+// 8. Register OmniRoute AI Gateway & Infrastructure
+builder.Services.Configure<BusinessModelApp.Infrastructure.AI.OmniRoute.OmniRouteOptions>(
+    builder.Configuration.GetSection(BusinessModelApp.Infrastructure.AI.OmniRoute.OmniRouteOptions.SectionName));
+
+builder.Services.AddHttpClient<BusinessModelApp.Infrastructure.AI.OmniRoute.IOmniRouteClient, BusinessModelApp.Infrastructure.AI.OmniRoute.OmniRouteClient>();
+builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIRoutingPolicyService, BusinessModelApp.Api.Services.AIRoutingPolicyService>();
+builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
+
+// Backward compatibility adapter
+builder.Services.AddScoped<IAIService, BusinessModelApp.Api.Services.AIServiceAdapter>();
 
 // 9. Register Infrastructure Services & Agents
 builder.Services.AddScoped<ICommandExecutionService, CommandExecutionService>();
 builder.Services.AddScoped<IFileSystemService, FileSystemService>();
 builder.Services.AddScoped<IAgentBroadcaster, SignalRAgentBroadcaster>();
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.AutonomousAgent>();
-
-// AI Fallback Service
-builder.Services.AddScoped<IAIService>(sp =>
-{
-    var logger = sp.GetRequiredService<ILogger<FallbackAIService>>();
-    var gemini = sp.GetRequiredService<GeminiService>();
-    var openRouter = sp.GetRequiredService<OpenRouterService>();
-    var mistral = sp.GetRequiredService<MistralService>();
-    var antigravity = sp.GetRequiredService<AntigravityAIService>();
-    var localLLM = sp.GetRequiredService<LocalLLMService>();
-
-    var providers = new List<IAIService> { localLLM, gemini, openRouter, mistral, antigravity };
-    return new FallbackAIService(providers, logger);
-});
 
 var app = builder.Build();
 

@@ -4,8 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using BusinessModelApp.Core.AI;
 using BusinessModelApp.Core.Domain.Commercial;
-using BusinessModelApp.Core.Interfaces;
 
 namespace BusinessModelApp.Core.Services
 {
@@ -18,11 +18,11 @@ namespace BusinessModelApp.Core.Services
 
     public class ExecutiveBriefService : IExecutiveBriefService
     {
-        private readonly IAIService _aiService;
+        private readonly IAIInferenceGateway _aiGateway;
 
-        public ExecutiveBriefService(IAIService aiService)
+        public ExecutiveBriefService(IAIInferenceGateway aiGateway)
         {
-            _aiService = aiService;
+            _aiGateway = aiGateway;
         }
 
         public async Task<ExecutiveBriefContext> GenerateExecutiveBriefAsync(
@@ -80,10 +80,9 @@ namespace BusinessModelApp.Core.Services
                 return brief;
             }
 
-            // 3. Synthesize Executive Summary with AI over Structured Facts
+            // 3. Synthesize Executive Summary with AI Inference Gateway over Structured Facts
             var prompt = new StringBuilder();
-            prompt.AppendLine("You are the Executive Operating AI for Bitbloom Enterprise. Generate a concise, 2-3 sentence executive morning brief based STRICTLY on the following verified facts.");
-            prompt.AppendLine("DO NOT invent or alter any financial figures. Cite the metrics directly.");
+            prompt.AppendLine("Executive Brief Context Facts:");
             prompt.AppendLine($"- Health Score: {health.OverallHealthScore:F0}/100 (Confidence: {health.ConfidenceLevel})");
             prompt.AppendLine($"- Weighted Forecast: {health.WeightedForecastValue:N0} INR (Coverage: {health.PipelineCoverageRatio:F2}x target)");
             prompt.AppendLine($"- Stalled Pipeline Risk: {health.StalledRiskIndex:F1}%");
@@ -92,10 +91,21 @@ namespace BusinessModelApp.Core.Services
 
             try
             {
-                var aiResponse = await _aiService.GetCompletionAsync(prompt.ToString());
-                if (!string.IsNullOrWhiteSpace(aiResponse))
+                var aiRequest = new AIRequest
                 {
-                    brief.Summary = aiResponse.Trim();
+                    TaskType = AITaskType.ExecutiveBrief,
+                    Preference = AIRoutingPreference.HighQuality,
+                    Messages = new List<AIMessage>
+                    {
+                        AIMessage.System("You are the Executive Operating AI for Bitbloom Enterprise. Generate a concise, 2-3 sentence executive morning brief based STRICTLY on the following verified facts. DO NOT invent or alter any financial figures. Cite the metrics directly."),
+                        AIMessage.User(prompt.ToString())
+                    }
+                };
+
+                var aiResponse = await _aiGateway.ExecuteAsync(aiRequest, ct);
+                if (!string.IsNullOrWhiteSpace(aiResponse?.Content))
+                {
+                    brief.Summary = aiResponse.Content.Trim();
                 }
                 else
                 {
