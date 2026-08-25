@@ -1,15 +1,20 @@
 using System.Text;
+using System.Text.Json;
+using BusinessModelApp.Api.Health;
 using BusinessModelApp.Api.Services;
 using BusinessModelApp.Core.Domain.Users;
 using BusinessModelApp.Core.Interfaces;
+using BusinessModelApp.Core.Observability;
 using BusinessModelApp.Core.Repositories;
 using BusinessModelApp.Core.Services;
 using BusinessModelApp.Infrastructure.Data;
 using BusinessModelApp.Infrastructure.Interceptors;
 using BusinessModelApp.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -64,7 +69,7 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 4. Configure Database with Append-Only Audit Interceptor
+// 4. Configure Database with Append-Only Audit Interceptor and Connection Resiliency
 var dbPath = Path.Combine(builder.Environment.ContentRootPath, "businessmodelapp.db");
 builder.Services.AddSingleton<AppendOnlyAuditInterceptor>();
 
@@ -75,7 +80,10 @@ builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 
     if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Contains("(localdb)"))
     {
-        options.UseSqlServer(connectionString).AddInterceptors(interceptor);
+        options.UseSqlServer(connectionString, sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+        }).AddInterceptors(interceptor);
     }
     else
     {
@@ -153,13 +161,21 @@ builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IAIDataMinimizati
 builder.Services.AddScoped<BusinessModelApp.Infrastructure.Services.IBudgetReservationService, BusinessModelApp.Infrastructure.Services.BudgetReservationService>();
 builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IApprovalService, BusinessModelApp.Infrastructure.Services.ApprovalService>();
 builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
-
 builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, BusinessModelApp.Core.Services.AIROIService>();
 
-// Backward compatibility adapter
-builder.Services.AddScoped<IAIService, BusinessModelApp.Api.Services.AIServiceAdapter>();
+// 9. Register Production Health Checks
+builder.Services.AddScoped<AppDbContextHealthCheck>();
+builder.Services.AddScoped<OmniRouteHealthCheck>();
+builder.Services.AddHealthChecks()
+    .AddCheck<AppDbContextHealthCheck>("database", tags: new[] { "ready" })
+    .AddCheck<OmniRouteHealthCheck>("omni_route", tags: new[] { "ai" });
 
-// 9. Register Infrastructure Services & Agents
+// Backward compatibility adapter
+#pragma warning disable CS0618
+builder.Services.AddScoped<IAIService, BusinessModelApp.Api.Services.AIServiceAdapter>();
+#pragma warning restore CS0618
+
+// 10. Register Infrastructure Services & Agents
 builder.Services.AddScoped<ICommandExecutionService, CommandExecutionService>();
 builder.Services.AddScoped<IFileSystemService, FileSystemService>();
 builder.Services.AddScoped<IAgentBroadcaster, SignalRAgentBroadcaster>();
@@ -167,7 +183,7 @@ builder.Services.AddScoped<BusinessModelApp.Core.Agents.AutonomousAgent>();
 
 var app = builder.Build();
 
-// 10. Auto-Seed Database strictly in Development or Testing environment
+// 11. Auto-Seed Database strictly in Development or Testing environment
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
@@ -183,7 +199,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
     }
 }
 
-// 11. Security Headers & Correlation Middleware
+// 12. Security Headers & Correlation Middleware
 app.Use(async (context, next) =>
 {
     // Security Headers
@@ -213,10 +229,53 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 13. Production Health Probes (Sanitized JSON Output)
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync("{\"status\":\"Live\",\"timestamp\":\"" + DateTime.UtcNow.ToString("o") + "\"}");
+    }
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = _ => true,
+    ResponseWriter = WriteSanitizedHealthResponseAsync
+});
+
+app.MapHealthChecks("/health/ai-gateway", new HealthCheckOptions
+{
+    Predicate = check => check.Name == "omni_route",
+    ResponseWriter = WriteSanitizedHealthResponseAsync
+});
+
 app.MapControllers();
 app.MapHub<BusinessModelApp.Api.Hubs.AgentHub>("/agentHub");
 
 app.Run();
+
+static async Task WriteSanitizedHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    var result = new
+    {
+        status = report.Status.ToString(),
+        totalDurationMs = report.TotalDuration.TotalMilliseconds,
+        entries = report.Entries.Select(e => new
+        {
+            name = e.Key,
+            status = e.Value.Status.ToString(),
+            description = TelemetrySanitizer.Sanitize(e.Value.Description),
+            durationMs = e.Value.Duration.TotalMilliseconds
+        })
+    };
+
+    var json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
+    await context.Response.WriteAsync(json);
+}
 
 // Export Program class for integration test fixture
 public partial class Program { }

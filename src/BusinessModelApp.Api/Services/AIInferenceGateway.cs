@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BusinessModelApp.Core.AI;
 using BusinessModelApp.Core.AI.Governance;
 using BusinessModelApp.Core.Interfaces;
+using BusinessModelApp.Core.Observability;
 using BusinessModelApp.Infrastructure.AI.OmniRoute;
 using BusinessModelApp.Infrastructure.Data;
 using BusinessModelApp.Infrastructure.Services;
@@ -48,6 +51,8 @@ namespace BusinessModelApp.Api.Services
                 throw new ArgumentNullException(nameof(request));
             }
 
+            using var activity = AITelemetryDiagnostics.ActivitySource.StartActivity("AIInferenceGateway.Execute", ActivityKind.Internal);
+
             // 1. SERVER-SIDE TENANT AUTHORITY: Overwrite agent/client IDs with authenticated context
             try
             {
@@ -61,7 +66,7 @@ namespace BusinessModelApp.Api.Services
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("AI request executing without authenticated user context: {Message}", ex.Message);
+                _logger.LogWarning("AI request executing without authenticated user context: {Message}", TelemetrySanitizer.Sanitize(ex.Message));
                 request.UserId ??= Guid.Empty;
                 request.OrganizationId ??= Guid.Empty;
                 request.WorkspaceId ??= Guid.Empty;
@@ -70,6 +75,12 @@ namespace BusinessModelApp.Api.Services
             var orgIdVal = request.OrganizationId.GetValueOrDefault();
             var wsIdVal = request.WorkspaceId.GetValueOrDefault();
 
+            // Set Zero-Trust Tracing Metadata (strictly non-sensitive identifiers)
+            activity?.SetTag("ai.task_type", request.TaskType.ToString());
+            activity?.SetTag("ai.organization_id", orgIdVal.ToString());
+            activity?.SetTag("ai.workspace_id", wsIdVal.ToString());
+            activity?.SetTag("ai.correlation_id", request.RequestCorrelationId);
+
             // 2. EMERGENCY KILL-SWITCH CHECK: Verify organization/workspace traffic status
             var trafficPolicy = await _context.AITrafficControlPolicies
                 .FirstOrDefaultAsync(p => p.OrganizationId == orgIdVal && (p.WorkspaceId == wsIdVal || p.WorkspaceId == null), ct);
@@ -77,7 +88,8 @@ namespace BusinessModelApp.Api.Services
             if (trafficPolicy != null && trafficPolicy.Status == AITrafficStatus.EmergencyDisabled)
             {
                 _logger.LogWarning("AI request blocked by Emergency Kill-Switch for Org {OrgId}. Reason: {Reason}",
-                    orgIdVal, trafficPolicy.DisabledReason);
+                    orgIdVal, TelemetrySanitizer.Sanitize(trafficPolicy.DisabledReason));
+                activity?.SetStatus(ActivityStatusCode.Error, "AI Kill-Switch Active");
                 throw new AIKillSwitchActiveException(
                     orgIdVal, trafficPolicy.DisabledReason ?? "Administrator emergency disabled all AI execution.");
             }
@@ -90,6 +102,7 @@ namespace BusinessModelApp.Api.Services
             var reservation = await _budgetService.ReserveBudgetAsync(orgIdVal, wsIdVal, estimatedCost, ct);
             if (!reservation.IsAllowed)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Budget Cap Exceeded");
                 throw new AIBudgetExceededException(
                     orgIdVal,
                     wsIdVal,
@@ -98,8 +111,12 @@ namespace BusinessModelApp.Api.Services
                     reservation.RejectionReason ?? "Monthly AI budget cap exceeded.");
             }
 
-            // 5. DATA MINIMIZATION & REDACTION: Task-specific scrubbing
+            // 5. DATA MINIMIZATION & REDACTION: Task-specific scrubbing & secret redaction
             request.Messages = _dataMinimizer.SanitizeMessages(request.Messages, request.TaskType);
+            for (int i = 0; i < request.Messages.Count; i++)
+            {
+                request.Messages[i].Content = TelemetrySanitizer.Sanitize(request.Messages[i].Content);
+            }
 
             // 6. Dispatch to OmniRoute Infrastructure Adapter
             AIResponse response;
@@ -107,8 +124,9 @@ namespace BusinessModelApp.Api.Services
             {
                 response = await _omniRouteClient.SendChatCompletionAsync(request, policy, ct);
             }
-            catch
+            catch (Exception ex)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, TelemetrySanitizer.Sanitize(ex.Message));
                 // Reconcile 0 cost on infrastructure failure to release in-flight reservation
                 await _budgetService.ReconcileReservationAsync(
                     reservation.ReservationId, orgIdVal, wsIdVal, 0m, 0, 0, 0, false, false, ct);
@@ -130,7 +148,31 @@ namespace BusinessModelApp.Api.Services
                 response.FallbackAttempts > 0,
                 ct);
 
-            // 8. Record Immutable Telemetry & Commercial Attribution (AICallRecord)
+            // 8. OpenTelemetry Dimensional Metrics Emission
+            var metricTags = new TagList
+            {
+                { "task_type", request.TaskType.ToString() },
+                { "provider", response.ProviderUsed },
+                { "model", response.ModelUsed },
+                { "cache_hit", response.CacheHit }
+            };
+
+            AITelemetryDiagnostics.InferenceCounter.Add(1, metricTags);
+            AITelemetryDiagnostics.SpendCounter.Add((double)actualCost, metricTags);
+            AITelemetryDiagnostics.DurationHistogram.Record(response.LatencyMs, metricTags);
+            if (response.CacheHit)
+            {
+                AITelemetryDiagnostics.CacheHitCounter.Add(1, metricTags);
+            }
+
+            // Span Enrichment
+            activity?.SetTag("ai.provider", response.ProviderUsed);
+            activity?.SetTag("ai.model", response.ModelUsed);
+            activity?.SetTag("ai.actual_cost", actualCost.ToString("F4"));
+            activity?.SetTag("ai.latency_ms", response.LatencyMs);
+            activity?.SetTag("ai.cache_hit", response.CacheHit);
+
+            // 9. Record Immutable Telemetry & Commercial Attribution (AICallRecord)
             try
             {
                 var telemetryRecord = new AICallRecord
@@ -165,7 +207,9 @@ namespace BusinessModelApp.Api.Services
             return response;
         }
 
-        public async IAsyncEnumerable<AIStreamChunk> StreamAsync(AIRequest request, CancellationToken ct = default)
+        public async IAsyncEnumerable<AIStreamChunk> StreamAsync(
+            AIRequest request,
+            [EnumeratorCancellation] CancellationToken ct = default)
         {
             var response = await ExecuteAsync(request, ct);
             yield return new AIStreamChunk
