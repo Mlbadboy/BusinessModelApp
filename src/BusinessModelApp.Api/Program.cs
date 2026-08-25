@@ -165,7 +165,8 @@ builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, Busines
 
 // Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
-builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService, BusinessModelApp.Core.Services.AgentOrchestratorService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
+    new BusinessModelApp.Core.Services.AgentOrchestratorService(sp.GetRequiredService<IServiceScopeFactory>()));
 
 // 9. Register Production Health Checks
 builder.Services.AddScoped<AppDbContextHealthCheck>();

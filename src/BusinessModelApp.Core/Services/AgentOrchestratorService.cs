@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BusinessModelApp.Core.Agents;
 using BusinessModelApp.Core.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BusinessModelApp.Core.Services
 {
@@ -31,12 +32,19 @@ namespace BusinessModelApp.Core.Services
 
     public class AgentOrchestratorService : IAgentOrchestratorService
     {
-        private readonly IGovernedToolRegistry _toolRegistry;
+        private readonly IServiceScopeFactory? _scopeFactory;
+        private readonly IGovernedToolRegistry? _fallbackToolRegistry;
         private readonly ConcurrentDictionary<Guid, AgentMission> _missions = new ConcurrentDictionary<Guid, AgentMission>();
 
+        public AgentOrchestratorService(IServiceScopeFactory scopeFactory)
+        {
+            _scopeFactory = scopeFactory;
+        }
+
+        // Test constructor
         public AgentOrchestratorService(IGovernedToolRegistry toolRegistry)
         {
-            _toolRegistry = toolRegistry;
+            _fallbackToolRegistry = toolRegistry;
         }
 
         public AgentMission CreateMission(
@@ -205,13 +213,34 @@ namespace BusinessModelApp.Core.Services
                 task.StartedAt = DateTime.UtcNow;
 
                 var agentIdentity = AgentIdentity.Create(task.AssignedRole);
+                IGovernedToolRegistry toolRegistry;
+                IDisposable? scopeToDispose = null;
+                if (_scopeFactory != null)
+                {
+                    var scope = _scopeFactory.CreateScope();
+                    scopeToDispose = scope;
+                    toolRegistry = scope.ServiceProvider.GetRequiredService<IGovernedToolRegistry>();
+                }
+                else
+                {
+                    toolRegistry = _fallbackToolRegistry ?? throw new InvalidOperationException("No tool registry configured.");
+                }
+
                 var parameters = new Dictionary<string, object>
                 {
                     { "company", "Apex Financial Technologies" },
                     { "amount", mission.TargetValueINR }
                 };
 
-                var toolResult = await _toolRegistry.ExecuteToolAsync(agentIdentity, task.ActionType, mission, parameters, ct);
+                ToolExecutionResult toolResult;
+                try
+                {
+                    toolResult = await toolRegistry.ExecuteToolAsync(agentIdentity, task.ActionType, mission, parameters, ct);
+                }
+                finally
+                {
+                    scopeToDispose?.Dispose();
+                }
 
                 if (toolResult.RequiresApproval)
                 {
