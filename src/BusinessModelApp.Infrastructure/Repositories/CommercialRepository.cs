@@ -19,7 +19,7 @@ namespace BusinessModelApp.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<Organization> GetOrganizationBySlugAsync(string slug, CancellationToken ct = default)
+        public async Task<Organization?> GetOrganizationBySlugAsync(string slug, CancellationToken ct = default)
         {
             return await _context.Organizations
                 .Include(o => o.Workspaces)
@@ -33,7 +33,7 @@ namespace BusinessModelApp.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
-        public async Task<Workspace> GetWorkspaceByIdAsync(Guid workspaceId, CancellationToken ct = default)
+        public async Task<Workspace?> GetWorkspaceByIdAsync(Guid workspaceId, CancellationToken ct = default)
         {
             return await _context.Workspaces
                 .FirstOrDefaultAsync(w => w.Id == workspaceId && !w.IsDeleted, ct);
@@ -49,12 +49,12 @@ namespace BusinessModelApp.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
-        public async Task<Lead> GetLeadByIdAsync(Guid leadId, CancellationToken ct = default)
+        public async Task<Lead?> GetLeadByIdAsync(Guid workspaceId, Guid leadId, CancellationToken ct = default)
         {
             return await _context.Leads
                 .Include(l => l.Interactions)
                 .Include(l => l.Opportunity)
-                .FirstOrDefaultAsync(l => l.Id == leadId && !l.IsDeleted, ct);
+                .FirstOrDefaultAsync(l => l.WorkspaceId == workspaceId && l.Id == leadId && !l.IsDeleted, ct);
         }
 
         public async Task<Lead> CreateLeadAsync(Lead lead, CancellationToken ct = default)
@@ -81,12 +81,12 @@ namespace BusinessModelApp.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
-        public async Task<Opportunity> GetOpportunityByIdAsync(Guid opportunityId, CancellationToken ct = default)
+        public async Task<Opportunity?> GetOpportunityByIdAsync(Guid workspaceId, Guid opportunityId, CancellationToken ct = default)
         {
             return await _context.Opportunities
                 .Include(o => o.Lead)
                 .Include(o => o.Activities)
-                .FirstOrDefaultAsync(o => o.Id == opportunityId && !o.IsDeleted, ct);
+                .FirstOrDefaultAsync(o => o.WorkspaceId == workspaceId && o.Id == opportunityId && !o.IsDeleted, ct);
         }
 
         public async Task<Opportunity> CreateOpportunityAsync(Opportunity opportunity, CancellationToken ct = default)
@@ -123,6 +123,45 @@ namespace BusinessModelApp.Infrastructure.Repositories
             _context.Interactions.Add(interaction);
             await _context.SaveChangesAsync(ct);
             return interaction;
+        }
+
+        public async Task<AuditEvent> LogAuditEventAsync(AuditEvent auditEvent, CancellationToken ct = default)
+        {
+            _context.AuditEvents.Add(auditEvent);
+            await _context.SaveChangesAsync(ct);
+            return auditEvent;
+        }
+
+        public async Task<IEnumerable<AuditEvent>> GetAuditEventsByWorkspaceAsync(Guid workspaceId, CancellationToken ct = default)
+        {
+            return await _context.AuditEvents
+                .Where(a => a.WorkspaceId == workspaceId)
+                .OrderByDescending(a => a.Timestamp)
+                .Take(100)
+                .ToListAsync(ct);
+        }
+
+        public async Task<IEnumerable<AuditEvent>> GetAuditEventsForEntityAsync(string entityType, Guid entityId, CancellationToken ct = default)
+        {
+            return await _context.AuditEvents
+                .Where(a => a.EntityType == entityType && a.EntityId == entityId)
+                .OrderByDescending(a => a.Timestamp)
+                .ToListAsync(ct);
+        }
+
+        public async Task<BusinessActivity> LogBusinessActivityAsync(BusinessActivity activity, CancellationToken ct = default)
+        {
+            _context.BusinessActivities.Add(activity);
+            await _context.SaveChangesAsync(ct);
+            return activity;
+        }
+
+        public async Task<IEnumerable<BusinessActivity>> GetBusinessActivitiesByOpportunityAsync(Guid opportunityId, CancellationToken ct = default)
+        {
+            return await _context.BusinessActivities
+                .Where(a => a.OpportunityId == opportunityId)
+                .OrderByDescending(a => a.CreatedAt)
+                .ToListAsync(ct);
         }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using BusinessModelApp.Core.Domain.Commercial;
 using BusinessModelApp.Core.DTOs.Commercial;
@@ -13,55 +12,34 @@ namespace BusinessModelApp.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class LeadsController : ControllerBase
     {
         private readonly ICommercialRepository _repository;
+        private readonly IUserContextService _userContext;
 
-        public LeadsController(ICommercialRepository repository)
+        public LeadsController(ICommercialRepository repository, IUserContextService userContext)
         {
             _repository = repository;
-        }
-
-        private Guid GetWorkspaceId()
-        {
-            if (Request.Headers.TryGetValue("X-Workspace-Id", out var headerValue) &&
-                Guid.TryParse(headerValue, out var workspaceId))
-            {
-                return workspaceId;
-            }
-
-            var claim = User.FindFirst("workspace_id");
-            if (claim != null && Guid.TryParse(claim.Value, out var claimWorkspaceId))
-            {
-                return claimWorkspaceId;
-            }
-
-            // Fallback for development/testing
-            return Guid.Empty;
+            _userContext = userContext;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<LeadDto>>> GetLeads([FromQuery] Guid? workspaceId)
         {
-            var targetWorkspaceId = workspaceId ?? GetWorkspaceId();
-            if (targetWorkspaceId == Guid.Empty)
-            {
-                // Return all leads if workspace is empty in dev
-                var allLeads = await _repository.GetLeadsByWorkspaceIdAsync(Guid.Empty);
-                return Ok(allLeads.Select(MapToDto));
-            }
-
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
             var leads = await _repository.GetLeadsByWorkspaceIdAsync(targetWorkspaceId);
             return Ok(leads.Select(MapToDto));
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<LeadDto>> GetLeadById(Guid id)
+        public async Task<ActionResult<LeadDto>> GetLeadById(Guid id, [FromQuery] Guid? workspaceId)
         {
-            var lead = await _repository.GetLeadByIdAsync(id);
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var lead = await _repository.GetLeadByIdAsync(targetWorkspaceId, id);
             if (lead == null)
             {
-                return NotFound(new { message = "Lead not found." });
+                return NotFound(new { message = "Lead not found in authorized workspace." });
             }
 
             return Ok(MapToDto(lead));
@@ -70,7 +48,8 @@ namespace BusinessModelApp.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<LeadDto>> CreateLead([FromBody] CreateLeadDto request, [FromQuery] Guid? workspaceId)
         {
-            var targetWorkspaceId = workspaceId ?? GetWorkspaceId();
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var userId = await _userContext.GetCurrentUserIdAsync();
 
             var lead = new Lead
             {
@@ -81,21 +60,38 @@ namespace BusinessModelApp.Api.Controllers
                 CompanyName = request.CompanyName,
                 Source = request.Source,
                 Status = LeadStatus.New,
-                QualityScore = 75.0, // Initial default score
+                QualityScore = 75.0,
                 Notes = request.Notes
             };
 
             var created = await _repository.CreateLeadAsync(lead);
+
+            // Audit Event
+            await _repository.LogAuditEventAsync(new AuditEvent
+            {
+                WorkspaceId = targetWorkspaceId,
+                EntityType = nameof(Lead),
+                EntityId = created.Id,
+                EventType = AuditEventType.LeadCreated,
+                ActionName = "Lead Received",
+                Description = $"New lead created: {created.ContactName} ({created.CompanyName}) from {created.Source}.",
+                PerformedByUserId = userId,
+                PerformedByName = User.Identity?.Name ?? "User"
+            });
+
             return CreatedAtAction(nameof(GetLeadById), new { id = created.Id }, MapToDto(created));
         }
 
         [HttpPost("{id}/qualify")]
-        public async Task<ActionResult<OpportunityDto>> QualifyLead(Guid id, [FromBody] CreateOpportunityDto oppRequest)
+        public async Task<ActionResult<OpportunityDto>> QualifyLead(Guid id, [FromBody] CreateOpportunityDto oppRequest, [FromQuery] Guid? workspaceId)
         {
-            var lead = await _repository.GetLeadByIdAsync(id);
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var userId = await _userContext.GetCurrentUserIdAsync();
+
+            var lead = await _repository.GetLeadByIdAsync(targetWorkspaceId, id);
             if (lead == null)
             {
-                return NotFound(new { message = "Lead not found." });
+                return NotFound(new { message = "Lead not found in authorized workspace." });
             }
 
             if (lead.Opportunity != null)
@@ -108,7 +104,7 @@ namespace BusinessModelApp.Api.Controllers
 
             var opportunity = new Opportunity
             {
-                WorkspaceId = lead.WorkspaceId,
+                WorkspaceId = targetWorkspaceId,
                 LeadId = lead.Id,
                 Title = string.IsNullOrWhiteSpace(oppRequest.Title) 
                     ? $"{lead.CompanyName} - Enterprise Solution" 
@@ -124,13 +120,26 @@ namespace BusinessModelApp.Api.Controllers
 
             var createdOpp = await _repository.CreateOpportunityAsync(opportunity);
 
-            // Record initial activity
+            // 1. Business Activity
             await _repository.AddActivityAsync(new Activity
             {
                 OpportunityId = createdOpp.Id,
                 Type = ActivityType.StageChanged,
                 Title = "Lead Qualified & Opportunity Created",
                 Description = $"Converted lead {lead.ContactName} from {lead.CompanyName}.",
+                PerformedByName = User.Identity?.Name ?? "User"
+            });
+
+            // 2. Security Audit Event
+            await _repository.LogAuditEventAsync(new AuditEvent
+            {
+                WorkspaceId = targetWorkspaceId,
+                EntityType = nameof(Opportunity),
+                EntityId = createdOpp.Id,
+                EventType = AuditEventType.LeadQualified,
+                ActionName = "Lead Converted to Opportunity",
+                Description = $"Lead '{lead.ContactName}' ({lead.Id}) qualified into Opportunity '{createdOpp.Title}' ({createdOpp.Id}).",
+                PerformedByUserId = userId,
                 PerformedByName = User.Identity?.Name ?? "User"
             });
 

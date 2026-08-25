@@ -1,62 +1,87 @@
 import { useQuery } from '@tanstack/react-query';
 import api, { endpoints, handleApiError } from '../utils/api';
 
-interface FinancialPerformance {
-  revenue: number;
-  expenses: number;
-  profit: number;
-  profitMargin: number;
-  period: string;
-  trends: {
-    revenueGrowth: number;
-    expenseGrowth: number;
-    profitGrowth: number;
-  };
+export interface ScoreComponentDetail {
+  componentName: string;
+  weightPercent: number;
+  rawScore: number;
+  weightedContribution: number;
+  explanation: string;
 }
 
-interface BusinessHealth {
-  cashflow: {
-    current: number;
-    projected: number;
-    trend: 'up' | 'down' | 'stable';
-  };
-  customerMetrics: {
-    acquisitionCost: number;
-    lifetimeValue: number;
-    retentionRate: number;
-  };
-  operationalEfficiency: {
-    resourceUtilization: number;
-    productivityScore: number;
-    processEfficiency: number;
-  };
+export interface EvidenceContributor {
+  entityType: string;
+  entityId: string;
+  name: string;
+  contributionValue: number;
+  contributionDetails: string;
+}
+
+export interface EvidenceRecord {
+  evidenceId: string;
+  evidenceType: string;
+  metricKey: string;
+  displayName: string;
+  formattedValue: string;
+  numericValue: number;
+  calculationVersion: string;
+  formula: string;
+  period: string;
+  confidenceScore: number;
+  impactLevel: string;
+  generatedAt: string;
+  contributors: EvidenceContributor[];
+}
+
+export interface HealthSubScores {
+  pipelineScore: number;
+  conversionScore: number;
+  velocityScore: number;
+  riskScore: number;
+}
+
+export interface BusinessHealthResult {
+  overallHealthScore: number;
+  confidenceScore: number;
+  confidenceLevel: string;
+  confidenceReason: string;
+  calculationVersion: string;
+  generatedAt: string;
+  totalPipelineValue: number;
+  weightedForecastValue: number;
+  closedWonRevenue: number;
+  quarterlyTarget: number;
+  pipelineCoverageRatio: number;
+  winRate: number;
+  leadQualificationRate: number;
+  avgVelocityDays: number;
+  stalledRiskIndex: number;
+  subScores: HealthSubScores;
+  componentBreakdown: ScoreComponentDetail[];
+  evidenceRecords: EvidenceRecord[];
+}
+
+export interface ExecutiveRecommendation {
+  title: string;
+  rationale: string;
+  citedEvidenceId: string;
+  actionType: string;
+  targetEntity: string;
+  targetEntityId?: string;
+}
+
+export interface ExecutiveBriefContext {
+  health: BusinessHealthResult;
+  criticalRiskAlerts: string[];
+  positiveMomentumSignals: string[];
+  isActionRequired: boolean;
+  summary: string;
+  recommendations: ExecutiveRecommendation[];
 }
 
 export const useAnalytics = () => {
-  // Fetch financial performance data
-  const {
-    data: financialPerformance,
-    isLoading: isLoadingFinancial,
-    error: financialError,
-  } = useQuery<FinancialPerformance>({
-    queryKey: ['financial-performance'],
-    queryFn: async () => {
-      try {
-        const { data } = await api.get(endpoints.analytics.financialPerformance);
-        return data;
-      } catch (error) {
-        throw handleApiError(error);
-      }
-    },
-    refetchInterval: 300000, // Refetch every 5 minutes
-  });
-
-  // Fetch business health data
-  const {
-    data: businessHealth,
-    isLoading: isLoadingHealth,
-    error: healthError,
-  } = useQuery<BusinessHealth>({
+  // Fetch deterministic business health data
+  const healthQuery = useQuery<BusinessHealthResult>({
     queryKey: ['business-health'],
     queryFn: async () => {
       try {
@@ -66,24 +91,29 @@ export const useAnalytics = () => {
         throw handleApiError(error);
       }
     },
-    refetchInterval: 300000, // Refetch every 5 minutes
+    refetchInterval: 60000,
   });
 
-  // Calculate key performance indicators
-  const kpis = financialPerformance
-    ? {
-        netProfitMargin: (financialPerformance.profit / financialPerformance.revenue) * 100,
-        revenueGrowth: financialPerformance.trends.revenueGrowth,
-        operatingEfficiency: businessHealth?.operationalEfficiency.processEfficiency,
-        customerLifetimeValue: businessHealth?.customerMetrics.lifetimeValue,
+  // Fetch AI Executive Brief
+  const briefQuery = useQuery<ExecutiveBriefContext>({
+    queryKey: ['executive-brief'],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(endpoints.analytics.executiveBrief);
+        return data;
+      } catch (error) {
+        throw handleApiError(error);
       }
-    : null;
+    },
+    refetchInterval: 120000,
+  });
 
   return {
-    financialPerformance,
-    businessHealth,
-    kpis,
-    isLoading: isLoadingFinancial || isLoadingHealth,
-    error: financialError || healthError,
+    businessHealth: healthQuery.data,
+    isLoadingHealth: healthQuery.isLoading,
+    executiveBrief: briefQuery.data,
+    isLoadingBrief: briefQuery.isLoading,
+    isLoading: healthQuery.isLoading || briefQuery.isLoading,
+    error: healthQuery.error || briefQuery.error,
   };
 };

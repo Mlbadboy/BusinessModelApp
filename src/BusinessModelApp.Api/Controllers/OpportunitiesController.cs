@@ -12,48 +12,35 @@ namespace BusinessModelApp.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class OpportunitiesController : ControllerBase
     {
         private readonly ICommercialRepository _repository;
+        private readonly IUserContextService _userContext;
 
-        public OpportunitiesController(ICommercialRepository repository)
+        public OpportunitiesController(ICommercialRepository repository, IUserContextService userContext)
         {
             _repository = repository;
-        }
-
-        private Guid GetWorkspaceId()
-        {
-            if (Request.Headers.TryGetValue("X-Workspace-Id", out var headerValue) &&
-                Guid.TryParse(headerValue, out var workspaceId))
-            {
-                return workspaceId;
-            }
-
-            var claim = User.FindFirst("workspace_id");
-            if (claim != null && Guid.TryParse(claim.Value, out var claimWorkspaceId))
-            {
-                return claimWorkspaceId;
-            }
-
-            return Guid.Empty;
+            _userContext = userContext;
         }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<OpportunityDto>>> GetOpportunities([FromQuery] Guid? workspaceId)
         {
-            var targetWorkspaceId = workspaceId ?? GetWorkspaceId();
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
             var opportunities = await _repository.GetOpportunitiesByWorkspaceIdAsync(targetWorkspaceId);
 
             return Ok(opportunities.Select(MapToDto));
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<OpportunityDto>> GetOpportunityById(Guid id)
+        public async Task<ActionResult<OpportunityDto>> GetOpportunityById(Guid id, [FromQuery] Guid? workspaceId)
         {
-            var opp = await _repository.GetOpportunityByIdAsync(id);
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var opp = await _repository.GetOpportunityByIdAsync(targetWorkspaceId, id);
             if (opp == null)
             {
-                return NotFound(new { message = "Opportunity not found." });
+                return NotFound(new { message = "Opportunity not found in authorized workspace." });
             }
 
             return Ok(MapToDto(opp));
@@ -62,7 +49,8 @@ namespace BusinessModelApp.Api.Controllers
         [HttpPost]
         public async Task<ActionResult<OpportunityDto>> CreateOpportunity([FromBody] CreateOpportunityDto request, [FromQuery] Guid? workspaceId)
         {
-            var targetWorkspaceId = workspaceId ?? GetWorkspaceId();
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var userId = await _userContext.GetCurrentUserIdAsync();
 
             var opp = new Opportunity
             {
@@ -80,6 +68,7 @@ namespace BusinessModelApp.Api.Controllers
 
             var created = await _repository.CreateOpportunityAsync(opp);
 
+            // 1. Business Activity
             await _repository.AddActivityAsync(new Activity
             {
                 OpportunityId = created.Id,
@@ -89,23 +78,39 @@ namespace BusinessModelApp.Api.Controllers
                 PerformedByName = User.Identity?.Name ?? "User"
             });
 
+            // 2. Audit Event
+            await _repository.LogAuditEventAsync(new AuditEvent
+            {
+                WorkspaceId = targetWorkspaceId,
+                EntityType = nameof(Opportunity),
+                EntityId = created.Id,
+                EventType = AuditEventType.OpportunityCreated,
+                ActionName = "Opportunity Created",
+                Description = $"Created opportunity '{created.Title}' with value {created.EstimatedValue:N0} {created.Currency}.",
+                PerformedByUserId = userId,
+                PerformedByName = User.Identity?.Name ?? "User"
+            });
+
             return CreatedAtAction(nameof(GetOpportunityById), new { id = created.Id }, MapToDto(created));
         }
 
         [HttpPatch("{id}/stage")]
-        public async Task<ActionResult<OpportunityDto>> UpdateStage(Guid id, [FromBody] UpdateOpportunityStageDto request)
+        public async Task<ActionResult<OpportunityDto>> UpdateStage(Guid id, [FromBody] UpdateOpportunityStageDto request, [FromQuery] Guid? workspaceId)
         {
-            var opp = await _repository.GetOpportunityByIdAsync(id);
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var userId = await _userContext.GetCurrentUserIdAsync();
+
+            var opp = await _repository.GetOpportunityByIdAsync(targetWorkspaceId, id);
             if (opp == null)
             {
-                return NotFound(new { message = "Opportunity not found." });
+                return NotFound(new { message = "Opportunity not found in authorized workspace." });
             }
 
             var oldStage = opp.Stage;
             opp.AdvanceStage(request.Stage);
             await _repository.UpdateOpportunityAsync(opp);
 
-            // Audit activity
+            // 1. Business Activity
             await _repository.AddActivityAsync(new Activity
             {
                 OpportunityId = opp.Id,
@@ -117,12 +122,40 @@ namespace BusinessModelApp.Api.Controllers
                 PerformedByName = User.Identity?.Name ?? "User"
             });
 
+            // 2. Security Audit Event
+            var eventType = request.Stage == OpportunityStage.ClosedWon 
+                ? AuditEventType.DealClosedWon 
+                : request.Stage == OpportunityStage.ClosedLost 
+                    ? AuditEventType.DealClosedLost 
+                    : AuditEventType.StageChanged;
+
+            await _repository.LogAuditEventAsync(new AuditEvent
+            {
+                WorkspaceId = targetWorkspaceId,
+                EntityType = nameof(Opportunity),
+                EntityId = opp.Id,
+                EventType = eventType,
+                ActionName = $"Opportunity Stage: {oldStage} -> {request.Stage}",
+                Description = $"Stage changed from {oldStage} to {request.Stage}. Note: {request.ReasonOrNote}",
+                OldStateJson = $"{{\"stage\": \"{oldStage}\"}}",
+                NewStateJson = $"{{\"stage\": \"{request.Stage}\", \"probability\": {opp.Probability}}}",
+                PerformedByUserId = userId,
+                PerformedByName = User.Identity?.Name ?? "User"
+            });
+
             return Ok(MapToDto(opp));
         }
 
         [HttpGet("{id}/activities")]
-        public async Task<ActionResult<IEnumerable<ActivityDto>>> GetActivities(Guid id)
+        public async Task<ActionResult<IEnumerable<ActivityDto>>> GetActivities(Guid id, [FromQuery] Guid? workspaceId)
         {
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var opp = await _repository.GetOpportunityByIdAsync(targetWorkspaceId, id);
+            if (opp == null)
+            {
+                return NotFound(new { message = "Opportunity not found in authorized workspace." });
+            }
+
             var activities = await _repository.GetActivitiesByOpportunityIdAsync(id);
             return Ok(activities.Select(a => new ActivityDto
             {
@@ -136,35 +169,18 @@ namespace BusinessModelApp.Api.Controllers
             }));
         }
 
-        [HttpPost("{id}/activities")]
-        public async Task<ActionResult<ActivityDto>> AddActivity(Guid id, [FromBody] CreateActivityDto request)
+        [HttpGet("{id}/audits")]
+        public async Task<ActionResult<IEnumerable<AuditEvent>>> GetAudits(Guid id, [FromQuery] Guid? workspaceId)
         {
-            var opp = await _repository.GetOpportunityByIdAsync(id);
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var opp = await _repository.GetOpportunityByIdAsync(targetWorkspaceId, id);
             if (opp == null)
             {
-                return NotFound(new { message = "Opportunity not found." });
+                return NotFound(new { message = "Opportunity not found in authorized workspace." });
             }
 
-            var activity = new Activity
-            {
-                OpportunityId = id,
-                Type = request.Type,
-                Title = request.Title,
-                Description = request.Description,
-                PerformedByName = User.Identity?.Name ?? "User"
-            };
-
-            var created = await _repository.AddActivityAsync(activity);
-            return Ok(new ActivityDto
-            {
-                Id = created.Id,
-                OpportunityId = created.OpportunityId,
-                Type = created.Type.ToString(),
-                Title = created.Title,
-                Description = created.Description,
-                PerformedByName = created.PerformedByName,
-                CreatedAt = created.CreatedAt
-            });
+            var audits = await _repository.GetAuditEventsForEntityAsync(nameof(Opportunity), id);
+            return Ok(audits);
         }
 
         private static OpportunityDto MapToDto(Opportunity o) => new OpportunityDto

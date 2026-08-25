@@ -5,6 +5,7 @@ using BusinessModelApp.Core.Interfaces;
 using BusinessModelApp.Core.Repositories;
 using BusinessModelApp.Core.Services;
 using BusinessModelApp.Infrastructure.Data;
+using BusinessModelApp.Infrastructure.Interceptors;
 using BusinessModelApp.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -28,6 +29,7 @@ builder.Services.AddCors(options =>
 
 // 2. Add controllers and SignalR
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -62,18 +64,22 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// 4. Configure Database (SQLite for local non-mock persistence)
+// 4. Configure Database with Append-Only Audit Interceptor
 var dbPath = Path.Combine(builder.Environment.ContentRootPath, "businessmodelapp.db");
-builder.Services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddSingleton<AppendOnlyAuditInterceptor>();
+
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
+    var interceptor = sp.GetRequiredService<AppendOnlyAuditInterceptor>();
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
     if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Contains("(localdb)"))
     {
-        options.UseSqlServer(connectionString);
+        options.UseSqlServer(connectionString).AddInterceptors(interceptor);
     }
     else
     {
-        options.UseSqlite($"Data Source={dbPath}");
+        options.UseSqlite($"Data Source={dbPath}").AddInterceptors(interceptor);
     }
 });
 
@@ -119,8 +125,11 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // 7. Register Repositories & Services
+builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICommercialRepository, CommercialRepository>();
+builder.Services.AddScoped<IBusinessHealthEngine, BusinessHealthEngine>();
+builder.Services.AddScoped<IExecutiveBriefService, ExecutiveBriefService>();
 
 // Register Domain Mock Services for peripheral modules
 builder.Services.AddScoped<IProductService, MockProductService>();
@@ -167,9 +176,10 @@ builder.Services.AddScoped<IAIService>(sp =>
 
 var app = builder.Build();
 
-// 10. Auto-Seed Database on Startup
-using (var scope = app.Services.CreateScope())
+// 10. Auto-Seed Database strictly in Development or Testing environment
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
     try
@@ -178,7 +188,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred during database seeding.");
+        logger.LogError(ex, "An error occurred during development database seeding.");
     }
 }
 
@@ -198,3 +208,6 @@ app.MapControllers();
 app.MapHub<BusinessModelApp.Api.Hubs.AgentHub>("/agentHub");
 
 app.Run();
+
+// Export Program class for integration test fixture
+public partial class Program { }

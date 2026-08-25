@@ -19,6 +19,8 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<Opportunity> Opportunities { get; set; }
         public DbSet<Interaction> Interactions { get; set; }
         public DbSet<Activity> Activities { get; set; }
+        public DbSet<AuditEvent> AuditEvents { get; set; }
+        public DbSet<BusinessActivity> BusinessActivities { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,16 +61,14 @@ namespace BusinessModelApp.Infrastructure.Data
                       .WithMany(w => w.Leads)
                       .HasForeignKey(e => e.WorkspaceId)
                       .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasIndex(e => new { e.WorkspaceId, e.Email });
             });
 
             // Opportunity
             modelBuilder.Entity<Opportunity>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-                entity.Property(e => e.EstimatedValue).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(250);
+                entity.Property(e => e.EstimatedValue).HasPrecision(18, 2);
                 entity.Property(e => e.Currency).HasMaxLength(10).HasDefaultValue("INR");
 
                 entity.HasOne(e => e.Workspace)
@@ -80,15 +80,13 @@ namespace BusinessModelApp.Infrastructure.Data
                       .WithOne(l => l.Opportunity)
                       .HasForeignKey<Opportunity>(e => e.LeadId)
                       .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasIndex(e => new { e.WorkspaceId, e.Stage });
             });
 
             // Interaction
             modelBuilder.Entity<Interaction>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Summary).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Channel).HasMaxLength(50);
 
                 entity.HasOne(e => e.Lead)
                       .WithMany(l => l.Interactions)
@@ -96,11 +94,12 @@ namespace BusinessModelApp.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Activity
+            // Activity (Legacy & General activities)
             modelBuilder.Entity<Activity>(entity =>
             {
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.PerformedByName).HasMaxLength(100);
 
                 entity.HasOne(e => e.Opportunity)
                       .WithMany(o => o.Activities)
@@ -108,16 +107,49 @@ namespace BusinessModelApp.Infrastructure.Data
                       .OnDelete(DeleteBehavior.Cascade);
             });
 
-            // Identity User & Role
-            modelBuilder.Entity<CoreUser>(entity =>
+            // AuditEvent (Security & compliance audit log)
+            modelBuilder.Entity<AuditEvent>(entity =>
             {
-                entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.EntityType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ActionName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PerformedByName).HasMaxLength(100);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Timestamp });
+                entity.HasIndex(e => new { e.EntityType, e.EntityId });
             });
 
-            modelBuilder.Entity<CoreRole>(entity =>
+            // BusinessActivity (Commercial touchpoints)
+            modelBuilder.Entity<BusinessActivity>(entity =>
             {
-                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.PerformedByName).HasMaxLength(100);
+
+                entity.HasOne(e => e.Opportunity)
+                      .WithMany()
+                      .HasForeignKey(e => e.OpportunityId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Lead)
+                      .WithMany()
+                      .HasForeignKey(e => e.LeadId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.WorkspaceId, e.CreatedAt });
+            });
+
+            // Core User Organization Scoping
+            modelBuilder.Entity<CoreUser>(entity =>
+            {
+                entity.HasOne<Organization>()
+                      .WithMany()
+                      .HasForeignKey(u => u.OrganizationId)
+                      .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne<Workspace>()
+                      .WithMany()
+                      .HasForeignKey(u => u.DefaultWorkspaceId)
+                      .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

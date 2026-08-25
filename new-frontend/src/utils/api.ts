@@ -78,6 +78,7 @@ export const endpoints = {
   analytics: {
     financialPerformance: '/analytics/financial-performance',
     businessHealth: '/analytics/business-health',
+    executiveBrief: '/analytics/executive-brief',
   },
   revenue: {
     trends: '/revenue/trends',

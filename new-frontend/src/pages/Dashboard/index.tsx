@@ -23,8 +23,11 @@ import {
   CardContent,
   Stack,
   Divider,
+  Alert,
+  LinearProgress,
 } from '@mui/material';
 import { useCommercial, Lead, Opportunity } from '../../hooks/useCommercial';
+import { useAnalytics, EvidenceRecord } from '../../hooks/useAnalytics';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 
@@ -56,6 +59,7 @@ const getStageColor = (stage: string): ChipProps['color'] => {
 const Dashboard = () => {
   const { leads, opportunities, isLoadingLeads, isLoadingOpportunities, createLead, qualifyLead, updateStage } =
     useCommercial();
+  const { businessHealth, executiveBrief, isLoading: isLoadingAnalytics } = useAnalytics();
 
   // Create Lead Dialog State
   const [isLeadDialogOpen, setLeadDialogOpen] = useState(false);
@@ -80,22 +84,20 @@ const Dashboard = () => {
   // Selected Opportunity Detail Modal
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
 
-  if (isLoadingLeads || isLoadingOpportunities) {
-    return <LoadingState message="Loading business workspace..." />;
+  // Selected Evidence Record Modal (Level 3 Drill-Down)
+  const [selectedEvidence, setSelectedEvidence] = useState<EvidenceRecord | null>(null);
+
+  if (isLoadingLeads || isLoadingOpportunities || isLoadingAnalytics) {
+    return <LoadingState message="Loading business operating system..." />;
   }
 
-  // Calculate Pipeline Value
-  const totalPipelineValue = opportunities
-    .filter((o) => o.stage !== 'ClosedLost')
-    .reduce((sum, o) => sum + (o.estimatedValue || 0), 0);
-
-  const weightedPipelineValue = opportunities
-    .filter((o) => o.stage !== 'ClosedLost')
-    .reduce((sum, o) => sum + (o.estimatedValue || 0) * (o.probability || 0), 0);
-
-  const wonValue = opportunities
-    .filter((o) => o.stage === 'ClosedWon')
-    .reduce((sum, o) => sum + (o.estimatedValue || 0), 0);
+  // Financial KPIs
+  const totalPipelineValue = businessHealth?.totalPipelineValue ?? 0;
+  const weightedPipelineValue = businessHealth?.weightedForecastValue ?? 0;
+  const wonValue = businessHealth?.closedWonRevenue ?? 0;
+  const healthScore = businessHealth?.overallHealthScore ?? 75;
+  const confidenceLevel = businessHealth?.confidenceLevel ?? 'Medium';
+  const confidenceScore = businessHealth?.confidenceScore ?? 0.65;
 
   const handleCreateLead = async () => {
     if (!newLead.contactName || !newLead.companyName) return;
@@ -130,16 +132,23 @@ const Dashboard = () => {
     }
   };
 
+  const openEvidenceById = (evidenceId: string) => {
+    const found = businessHealth?.evidenceRecords.find((e) => e.evidenceId === evidenceId);
+    if (found) {
+      setSelectedEvidence(found);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
+      {/* Top Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <div>
           <Typography variant="h4" fontWeight="bold">
-            Executive Operating System
+            AI Executive Operating System
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Unified Commercial Lifecycle: Lead → Opportunity → Activity → Revenue Attribution
+            Deterministic Engine: Verified Facts → Evidence → AI Interpretation → Human Action
           </Typography>
         </div>
         <Button variant="contained" color="primary" onClick={() => setLeadDialogOpen(true)}>
@@ -147,7 +156,108 @@ const Dashboard = () => {
         </Button>
       </Box>
 
-      {/* Top Financial & Commercial KPI Cards */}
+      {/* LEVEL 1: Executive Morning Brief Card */}
+      <Paper
+        elevation={3}
+        sx={{
+          p: 3,
+          mb: 4,
+          background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(156, 39, 176, 0.05) 100%)',
+          border: '1px solid rgba(25, 118, 210, 0.2)',
+          borderRadius: 2,
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <div>
+            <Typography variant="overline" color="primary.main" fontWeight="bold" letterSpacing={1}>
+              Level 1 — Executive Morning Brief ({businessHealth?.calculationVersion || 'HealthEngine:v1.0'})
+            </Typography>
+            <Typography variant="h6" fontWeight="bold" sx={{ mt: 0.5 }}>
+              {executiveBrief?.summary || 'Business operations are operating within expected quarterly targets.'}
+            </Typography>
+          </div>
+          <Stack direction="row" spacing={1}>
+            <Chip
+              label={`Health: ${healthScore.toFixed(0)}/100`}
+              color={healthScore >= 75 ? 'success' : healthScore >= 50 ? 'warning' : 'error'}
+              sx={{ fontWeight: 'bold' }}
+            />
+            <Chip
+              label={`Confidence: ${confidenceLevel} (${(confidenceScore * 100).toFixed(0)}%)`}
+              variant="outlined"
+              color={confidenceLevel === 'High' ? 'success' : confidenceLevel === 'Medium' ? 'primary' : 'warning'}
+            />
+            {!executiveBrief?.isActionRequired ? (
+              <Chip label="No Intervention Required" color="success" variant="outlined" />
+            ) : (
+              <Chip label="Action Recommended" color="warning" />
+            )}
+          </Stack>
+        </Box>
+
+        {/* Actionable Recommendations with Cited Evidence Links */}
+        {executiveBrief?.recommendations && executiveBrief.recommendations.length > 0 && (
+          <Stack spacing={1} sx={{ mt: 2 }}>
+            {executiveBrief.recommendations.map((rec, idx) => (
+              <Alert
+                key={idx}
+                severity="info"
+                action={
+                  rec.citedEvidenceId ? (
+                    <Button
+                      color="inherit"
+                      size="small"
+                      variant="outlined"
+                      onClick={() => openEvidenceById(rec.citedEvidenceId)}
+                    >
+                      View Evidence #{rec.citedEvidenceId}
+                    </Button>
+                  ) : undefined
+                }
+              >
+                <strong>{rec.title}</strong> — {rec.rationale}
+              </Alert>
+            ))}
+          </Stack>
+        )}
+      </Paper>
+
+      {/* LEVEL 2: Deterministic Business Health Breakdown (Why) */}
+      <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+        Level 2 — Business Health Component Breakdown
+      </Typography>
+      <Grid container spacing={2.5} sx={{ mb: 4 }}>
+        {businessHealth?.componentBreakdown.map((comp, idx) => (
+          <Grid item xs={12} sm={6} md={3} key={idx}>
+            <Paper elevation={2} sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {comp.componentName}
+                </Typography>
+                <Chip label={`Weight ${comp.weightPercent}%`} size="small" variant="outlined" />
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'baseline', my: 1 }}>
+                <Typography variant="h4" fontWeight="bold" color="primary.main">
+                  {comp.rawScore.toFixed(0)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  / 100 ({comp.weightedContribution.toFixed(1)} pts)
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(100, comp.rawScore)}
+                sx={{ height: 6, borderRadius: 3, mb: 1.5 }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+                {comp.explanation}
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Financial & Commercial KPI Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Paper elevation={2} sx={{ p: 2.5 }}>
@@ -172,7 +282,7 @@ const Dashboard = () => {
               {formatINR(weightedPipelineValue)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Probability-adjusted revenue
+              Target: {formatINR(businessHealth?.quarterlyTarget ?? 5000000)} ({businessHealth?.pipelineCoverageRatio ?? 0}x)
             </Typography>
           </Paper>
         </Grid>
@@ -186,7 +296,7 @@ const Dashboard = () => {
               {formatINR(wonValue)}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Attributed to commercial execution
+              Win Rate: {((businessHealth?.winRate ?? 0.5) * 100).toFixed(0)}%
             </Typography>
           </Paper>
         </Grid>
@@ -200,7 +310,7 @@ const Dashboard = () => {
               {leads.length}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {leads.filter((l) => l.status === 'Qualified').length} qualified for conversion
+              Qual Rate: {((businessHealth?.leadQualificationRate ?? 0) * 100).toFixed(0)}%
             </Typography>
           </Paper>
         </Grid>
@@ -215,7 +325,7 @@ const Dashboard = () => {
               Commercial Opportunities Pipeline
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Active pipeline backed by non-mock database persistence and audit trails.
+              Verified lifecycle with server-side authorization and append-only audit tracking.
             </Typography>
 
             <TableContainer>
@@ -293,7 +403,7 @@ const Dashboard = () => {
               Inbound Leads & Qualification
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Omnichannel Leads (Voice AI, Web, Referral)
+              Omnichannel Leads (Voice AI, Web, WhatsApp, Referral)
             </Typography>
 
             <Stack spacing={2}>
@@ -356,6 +466,63 @@ const Dashboard = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* LEVEL 3: Evidence Drill-Down Dialog */}
+      <Dialog open={Boolean(selectedEvidence)} onClose={() => setSelectedEvidence(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Evidence #{selectedEvidence?.evidenceId}</span>
+            <Chip label={selectedEvidence?.evidenceType} color="primary" size="small" />
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Metric & Value
+            </Typography>
+            <Typography variant="h5" fontWeight="bold" color="primary.main">
+              {selectedEvidence?.displayName}: {selectedEvidence?.formattedValue}
+            </Typography>
+          </Box>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={6}>
+              <Typography variant="caption" color="text.secondary">
+                Mathematical Formula
+              </Typography>
+              <Typography variant="body2" fontFamily="monospace">
+                {selectedEvidence?.formula}
+              </Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="caption" color="text.secondary">
+                Version & Period
+              </Typography>
+              <Typography variant="body2">
+                {selectedEvidence?.calculationVersion} ({selectedEvidence?.period})
+              </Typography>
+            </Grid>
+          </Grid>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+            Contributing Source Records
+          </Typography>
+          <Stack spacing={1} sx={{ mt: 1 }}>
+            {selectedEvidence?.contributors.map((contrib, idx) => (
+              <Paper key={idx} variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {contrib.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {contrib.contributionDetails}
+                </Typography>
+              </Paper>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedEvidence(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog: Create Inbound Lead */}
       <Dialog open={isLeadDialogOpen} onClose={() => setLeadDialogOpen(false)} maxWidth="sm" fullWidth>

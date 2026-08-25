@@ -12,8 +12,8 @@ namespace BusinessModelApp.Core.Domain.Common
     public abstract class Entity<TKey> : IEntity<TKey> where TKey : IEquatable<TKey>
     {
         public TKey Id { get; set; }
-        public DateTime CreatedAt { get; protected set; }
-        public DateTime UpdatedAt { get; protected set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
 
         protected Entity()
         {
