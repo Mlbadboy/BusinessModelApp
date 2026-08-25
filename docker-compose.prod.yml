@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # 1. Production PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: businessmodelapp-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: businessmodelapp
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SuperSecretProdPass2026!}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d businessmodelapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bma-network
+
+  # 2. .NET 8 Backend API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: businessmodelapp-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=businessmodelapp;Username=${POSTGRES_USER:-appuser};Password=${POSTGRES_PASSWORD:-SuperSecretProdPass2026!};"
+      Jwt__Key: ${JWT_SECRET:-ProductionJwtSecretKeyMustBeVeryLongAndSecure2026!}
+      Jwt__Issuer: BusinessModelApp
+      Jwt__Audience: BusinessModelAppClient
+      OmniRoute__BaseUrl: ${OMNIROUTE_URL:-http://omniroute:8000}
+      OmniRoute__ApiKey: ${OMNIROUTE_API_KEY:-omniroute-production-key}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_SERVICE_NAME: "BusinessModelApp.Api"
+    networks:
+      - bma-network
+
+  # 3. React Frontend Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: businessmodelapp-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - bma-network
+
+  # 4. OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.95.0
+    container_name: businessmodelapp-otel
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8889:8889" # Prometheus metrics exporter
+    networks:
+      - bma-network
+
+  # 5. Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    container_name: businessmodelapp-prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - bma-network
+
+volumes:
+  postgres_data:
+
+networks:
+  bma-network:
+    driver: bridge

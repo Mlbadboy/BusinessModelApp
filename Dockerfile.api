@@ -1,0 +1,54 @@
+# ==========================================
+# Multi-Stage Production Dockerfile for .NET 8 API
+# Hardened non-root runtime container
+# ==========================================
+
+# Stage 1: Build & Publish
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /source
+
+# Copy solution and project files for layer caching
+COPY BusinessModelApp.sln .
+COPY src/BusinessModelApp.Core/*.csproj src/BusinessModelApp.Core/
+COPY src/BusinessModelApp.Infrastructure/*.csproj src/BusinessModelApp.Infrastructure/
+COPY src/BusinessModelApp.Api/*.csproj src/BusinessModelApp.Api/
+COPY tests/BusinessModelApp.Tests/*.csproj tests/BusinessModelApp.Tests/
+
+RUN dotnet restore BusinessModelApp.sln
+
+# Copy source code and publish release
+COPY src/ src/
+COPY tests/ tests/
+
+WORKDIR /source/src/BusinessModelApp.Api
+RUN dotnet publish -c Release -o /app/publish \
+    --no-restore \
+    -p:UseAppHost=false
+
+# Stage 2: Hardened Runtime Container
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+WORKDIR /app
+
+# Install curl for container health checks
+RUN apk add --no-cache curl
+
+# Create non-root user for principle of least privilege
+RUN addgroup -g 10001 -S appgroup && \
+    adduser -u 10001 -S appuser -G appgroup
+
+COPY --from=build --chown=appuser:appgroup /app/publish .
+
+# Environment Variables
+ENV ASPNETCORE_URLS=http://+:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV DOTNET_EnableDiagnostics=0
+
+USER appuser
+
+EXPOSE 8080
+
+# Production Healthcheck Probe
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:8080/health/live || exit 1
+
+ENTRYPOINT ["dotnet", "BusinessModelApp.Api.dll"]
