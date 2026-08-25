@@ -16,15 +16,13 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Dashboard,
-  Analytics,
-  Business,
-  AccountCircle,
-  Settings,
-  Lock,
-} from '@mui/icons-material';
+import MenuIcon from '@mui/icons-material/Menu';
+import Dashboard from '@mui/icons-material/Dashboard';
+import Analytics from '@mui/icons-material/Analytics';
+import Business from '@mui/icons-material/Business';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import Settings from '@mui/icons-material/Settings';
+import Lock from '@mui/icons-material/Lock';
 import { useAuth } from '../../hooks/useAuth';
 
 const drawerWidth = 240;

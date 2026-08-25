@@ -21,11 +21,13 @@ interface EnvConfig {
 
 export const config: EnvConfig = {
   api: {
-    baseUrl: import.meta.env.VITE_API_BASE_URL,
-    errorReportingUrl: import.meta.env.VITE_ERROR_REPORTING_URL,
+    // A relative URL lets Vite's development proxy and a same-origin production
+    // deployment use the API without machine-specific configuration.
+    baseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
+    errorReportingUrl: import.meta.env.VITE_ERROR_REPORTING_URL || '',
   },
   auth: {
-    tokenKey: import.meta.env.VITE_AUTH_TOKEN_KEY,
+    tokenKey: import.meta.env.VITE_AUTH_TOKEN_KEY || 'auth_token',
   },
   features: {
     analytics: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
@@ -33,8 +35,8 @@ export const config: EnvConfig = {
     errorReporting: import.meta.env.VITE_ENABLE_ERROR_REPORTING === 'true',
   },
   app: {
-    environment: import.meta.env.VITE_APP_ENV,
-    name: import.meta.env.VITE_APP_NAME,
+    environment: import.meta.env.VITE_APP_ENV || import.meta.env.MODE,
+    name: import.meta.env.VITE_APP_NAME || 'Business Model Management',
   },
 };
 
