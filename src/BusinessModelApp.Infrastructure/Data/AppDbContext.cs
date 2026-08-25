@@ -22,6 +22,9 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<AuditEvent> AuditEvents { get; set; }
         public DbSet<BusinessActivity> BusinessActivities { get; set; }
         public DbSet<BusinessModelApp.Core.AI.AICallRecord> AICallRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.AI.Governance.AIUsageDaily> AIUsageDailies { get; set; }
+        public DbSet<BusinessModelApp.Core.AI.Governance.AIBudgetPolicy> AIBudgetPolicies { get; set; }
+        public DbSet<BusinessModelApp.Core.AI.Governance.ApprovalRequest> ApprovalRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -165,6 +168,36 @@ namespace BusinessModelApp.Infrastructure.Data
 
                 entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId, e.CreatedAt });
                 entity.HasIndex(e => e.RequestCorrelationId);
+            });
+
+            // AIUsageDaily (Fast derived FinOps aggregation)
+            modelBuilder.Entity<BusinessModelApp.Core.AI.Governance.AIUsageDaily>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.EstimatedCost).HasPrecision(18, 6);
+                entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId, e.Date }).IsUnique();
+            });
+
+            // AIBudgetPolicy
+            modelBuilder.Entity<BusinessModelApp.Core.AI.Governance.AIBudgetPolicy>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.MonthlyBudgetCap).HasPrecision(18, 2);
+                entity.Property(e => e.DailyBudgetCap).HasPrecision(18, 2);
+                entity.Property(e => e.MaxCostPerRequest).HasPrecision(18, 2);
+                entity.Property(e => e.WarningThresholdPercent).HasPrecision(5, 2);
+                entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId }).IsUnique();
+            });
+
+            // ApprovalRequest
+            modelBuilder.Entity<BusinessModelApp.Core.AI.Governance.ApprovalRequest>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ActionType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(250);
+                entity.Property(e => e.RequesterName).HasMaxLength(150);
+                entity.Property(e => e.DecidedByName).HasMaxLength(150);
+                entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId, e.Status });
             });
         }
     }

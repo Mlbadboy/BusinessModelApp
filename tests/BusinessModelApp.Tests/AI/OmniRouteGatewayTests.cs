@@ -53,10 +53,15 @@ namespace BusinessModelApp.Tests.AI
             mockUserContext.Setup(u => u.GetCurrentOrganizationIdAsync(default)).ReturnsAsync(actualOrgId);
             mockUserContext.Setup(u => u.GetAuthorizedWorkspaceIdAsync(It.IsAny<Guid?>(), default)).ReturnsAsync(actualWsId);
 
+            var dataMinimizer = new BusinessModelApp.Core.AI.Governance.AIDataMinimizationService();
+            var budgetService = new BusinessModelApp.Infrastructure.Services.BudgetReservationService(context, NullLogger<BusinessModelApp.Infrastructure.Services.BudgetReservationService>.Instance);
+
             var gateway = new AIInferenceGateway(
                 omniClient,
                 policyService,
                 mockUserContext.Object,
+                dataMinimizer,
+                budgetService,
                 context,
                 NullLogger<AIInferenceGateway>.Instance);
 
@@ -159,10 +164,15 @@ namespace BusinessModelApp.Tests.AI
             mockUserContext.Setup(u => u.GetCurrentOrganizationIdAsync(default)).ReturnsAsync(Guid.NewGuid());
             mockUserContext.Setup(u => u.GetAuthorizedWorkspaceIdAsync(It.IsAny<Guid?>(), default)).ReturnsAsync(Guid.NewGuid());
 
+            var dataMinimizer = new BusinessModelApp.Core.AI.Governance.AIDataMinimizationService();
+            var budgetService = new BusinessModelApp.Infrastructure.Services.BudgetReservationService(context, NullLogger<BusinessModelApp.Infrastructure.Services.BudgetReservationService>.Instance);
+
             var gateway = new AIInferenceGateway(
                 omniClient,
                 new AIRoutingPolicyService(),
                 mockUserContext.Object,
+                dataMinimizer,
+                budgetService,
                 context,
                 NullLogger<AIInferenceGateway>.Instance);
 
@@ -197,10 +207,15 @@ namespace BusinessModelApp.Tests.AI
             mockUserContext.Setup(u => u.GetCurrentOrganizationIdAsync(default)).ReturnsAsync(orgId);
             mockUserContext.Setup(u => u.GetAuthorizedWorkspaceIdAsync(It.IsAny<Guid?>(), default)).ReturnsAsync(wsId);
 
+            var dataMinimizer2 = new BusinessModelApp.Core.AI.Governance.AIDataMinimizationService();
+            var budgetService2 = new BusinessModelApp.Infrastructure.Services.BudgetReservationService(context, NullLogger<BusinessModelApp.Infrastructure.Services.BudgetReservationService>.Instance);
+
             var gateway = new AIInferenceGateway(
                 omniClient,
                 new AIRoutingPolicyService(),
                 mockUserContext.Object,
+                dataMinimizer2,
+                budgetService2,
                 context,
                 NullLogger<AIInferenceGateway>.Instance);
 

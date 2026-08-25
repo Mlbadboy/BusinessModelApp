@@ -183,6 +183,56 @@ namespace BusinessModelApp.Api.Controllers
             return Ok(audits);
         }
 
+        [HttpPost("{id}/analyze-risk")]
+        public async Task<ActionResult<object>> AnalyzeOpportunityRisk(
+            Guid id,
+            [FromServices] BusinessModelApp.Core.AI.IAIInferenceGateway aiGateway,
+            [FromServices] BusinessModelApp.Core.AI.Governance.IApprovalService approvalService,
+            [FromQuery] Guid? workspaceId)
+        {
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var userId = await _userContext.GetCurrentUserIdAsync();
+            var orgId = await _userContext.GetCurrentOrganizationIdAsync();
+
+            var opp = await _repository.GetOpportunityByIdAsync(targetWorkspaceId, id);
+            if (opp == null)
+            {
+                return NotFound(new { message = "Opportunity not found in authorized workspace." });
+            }
+
+            var prompt = $"Analyze commercial deal '{opp.Title}' (Account: {opp.Lead?.CompanyName}, Value: {opp.EstimatedValue:C0}, Stage: {opp.Stage}, Current Concern: '{opp.PrimaryConcern}', Next Step: '{opp.NextStep}'). Identify primary deal risks, win-rate probability adjustment factor, and 2 concrete actions to close.";
+            var aiRequest = new BusinessModelApp.Core.AI.AIRequest
+            {
+                TaskType = BusinessModelApp.Core.AI.AITaskType.OpportunityAnalysis,
+                WorkspaceId = targetWorkspaceId,
+                Messages = { BusinessModelApp.Core.AI.AIMessage.User(prompt) }
+            };
+
+            var aiResponse = await aiGateway.ExecuteAsync(aiRequest);
+
+            // Record Governance Review Request
+            await approvalService.SubmitApprovalRequestAsync(
+                orgId,
+                targetWorkspaceId,
+                userId,
+                User.Identity?.Name ?? "Executive User",
+                "DealRiskAnalysis",
+                $"AI Risk Analysis for {opp.Title}",
+                aiResponse.Content,
+                BusinessModelApp.Core.AI.Governance.ApprovalRiskLevel.Medium);
+
+            return Ok(new
+            {
+                opportunityId = opp.Id,
+                title = opp.Title,
+                stage = opp.Stage.ToString(),
+                estimatedValue = opp.EstimatedValue,
+                analysis = aiResponse.Content,
+                modelUsed = aiResponse.ModelUsed,
+                providerUsed = aiResponse.ProviderUsed
+            });
+        }
+
         private static OpportunityDto MapToDto(Opportunity o) => new OpportunityDto
         {
             Id = o.Id,

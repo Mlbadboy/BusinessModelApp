@@ -20,6 +20,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import Dashboard from '@mui/icons-material/Dashboard';
 import Analytics from '@mui/icons-material/Analytics';
 import Business from '@mui/icons-material/Business';
+import SmartToy from '@mui/icons-material/SmartToy';
 import AccountCircle from '@mui/icons-material/AccountCircle';
 import Settings from '@mui/icons-material/Settings';
 import Lock from '@mui/icons-material/Lock';
@@ -39,6 +40,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/' },
+  { text: 'AI Control Center', icon: <SmartToy />, path: '/ai-control-center' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'Revenue', icon: <Business />, path: '/revenue' },
   { text: 'Expenses', icon: <Business />, path: '/expenses' },

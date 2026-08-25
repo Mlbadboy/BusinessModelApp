@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using BusinessModelApp.Core.AI;
+using BusinessModelApp.Core.AI.Governance;
 using BusinessModelApp.Core.Interfaces;
 using BusinessModelApp.Infrastructure.AI.OmniRoute;
 using BusinessModelApp.Infrastructure.Data;
+using BusinessModelApp.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 
 namespace BusinessModelApp.Api.Services
@@ -15,6 +17,8 @@ namespace BusinessModelApp.Api.Services
         private readonly IOmniRouteClient _omniRouteClient;
         private readonly IAIRoutingPolicyService _policyService;
         private readonly IUserContextService _userContext;
+        private readonly IAIDataMinimizationService _dataMinimizer;
+        private readonly IBudgetReservationService _budgetService;
         private readonly AppDbContext _context;
         private readonly ILogger<AIInferenceGateway> _logger;
 
@@ -22,12 +26,16 @@ namespace BusinessModelApp.Api.Services
             IOmniRouteClient omniRouteClient,
             IAIRoutingPolicyService policyService,
             IUserContextService userContext,
+            IAIDataMinimizationService dataMinimizer,
+            IBudgetReservationService budgetService,
             AppDbContext context,
             ILogger<AIInferenceGateway> logger)
         {
             _omniRouteClient = omniRouteClient;
             _policyService = policyService;
             _userContext = userContext;
+            _dataMinimizer = dataMinimizer;
+            _budgetService = budgetService;
             _context = context;
             _logger = logger;
         }
@@ -53,25 +61,69 @@ namespace BusinessModelApp.Api.Services
             catch (Exception ex)
             {
                 _logger.LogWarning("AI request executing without authenticated user context: {Message}", ex.Message);
-                // Fallback for background system tasks
                 request.UserId ??= Guid.Empty;
                 request.OrganizationId ??= Guid.Empty;
                 request.WorkspaceId ??= Guid.Empty;
             }
 
-            // 2. Resolve approved Routing Policy
+            var orgIdVal = request.OrganizationId.GetValueOrDefault();
+            var wsIdVal = request.WorkspaceId.GetValueOrDefault();
+
+            // 2. Resolve approved Routing Policy Profile
             var policy = _policyService.ResolvePolicy(request.TaskType, request.Preference);
 
-            // 3. Dispatch to OmniRoute Infrastructure Adapter
-            var response = await _omniRouteClient.SendChatCompletionAsync(request, policy, ct);
+            // 3. AI FINOPS GOVERNANCE: Atomic Budget Reservation
+            var estimatedCost = policy.MaxEstimatedCost ?? 0.10m;
+            var reservation = await _budgetService.ReserveBudgetAsync(orgIdVal, wsIdVal, estimatedCost, ct);
+            if (!reservation.IsAllowed)
+            {
+                throw new AIBudgetExceededException(
+                    orgIdVal,
+                    wsIdVal,
+                    estimatedCost,
+                    reservation.RemainingMonthlyBudget,
+                    reservation.RejectionReason ?? "Monthly AI budget cap exceeded.");
+            }
 
-            // 4. Record Telemetry (Append-only AICallRecord)
+            // 4. DATA MINIMIZATION & REDACTION: Task-specific scrubbing
+            request.Messages = _dataMinimizer.SanitizeMessages(request.Messages, request.TaskType);
+
+            // 5. Dispatch to OmniRoute Infrastructure Adapter
+            AIResponse response;
+            try
+            {
+                response = await _omniRouteClient.SendChatCompletionAsync(request, policy, ct);
+            }
+            catch (Exception ex)
+            {
+                // Reconcile 0 cost on infrastructure failure to free reservation
+                await _budgetService.ReconcileReservationAsync(
+                    reservation.ReservationId, orgIdVal, wsIdVal, 0m, 0, 0, 0, false, false, ct);
+                throw;
+            }
+
+            var actualCost = response.EstimatedCost ?? estimatedCost;
+
+            // 6. Reconcile Budget Reservation & Upsert Fast AIUsageDaily Ledger
+            await _budgetService.ReconcileReservationAsync(
+                reservation.ReservationId,
+                orgIdVal,
+                wsIdVal,
+                actualCost,
+                response.Usage.PromptTokens,
+                response.Usage.CompletionTokens,
+                response.LatencyMs,
+                response.CacheHit,
+                response.FallbackAttempts > 0,
+                ct);
+
+            // 7. Record Immutable Telemetry (AICallRecord)
             try
             {
                 var telemetryRecord = new AICallRecord
                 {
-                    OrganizationId = request.OrganizationId.GetValueOrDefault(),
-                    WorkspaceId = request.WorkspaceId.GetValueOrDefault(),
+                    OrganizationId = orgIdVal,
+                    WorkspaceId = wsIdVal,
                     UserId = request.UserId.GetValueOrDefault(),
                     AgentId = request.AgentId,
                     TaskType = request.TaskType,
@@ -79,7 +131,7 @@ namespace BusinessModelApp.Api.Services
                     Model = response.ModelUsed,
                     PromptTokens = response.Usage.PromptTokens,
                     CompletionTokens = response.Usage.CompletionTokens,
-                    EstimatedCost = response.EstimatedCost, // Nullable if not provided
+                    EstimatedCost = response.EstimatedCost,
                     LatencyMs = response.LatencyMs,
                     CacheHit = response.CacheHit,
                     FallbackAttempts = response.FallbackAttempts,
@@ -92,7 +144,6 @@ namespace BusinessModelApp.Api.Services
             }
             catch (Exception ex)
             {
-                // Telemetry recording failure must never crash inference, but must be logged
                 _logger.LogError(ex, "Failed to persist AICallRecord telemetry for correlation {CorrId}", request.RequestCorrelationId);
             }
 
@@ -101,7 +152,6 @@ namespace BusinessModelApp.Api.Services
 
         public async IAsyncEnumerable<AIStreamChunk> StreamAsync(AIRequest request, CancellationToken ct = default)
         {
-            // First vertical slice delegates to synchronous execute for contract completeness
             var response = await ExecuteAsync(request, ct);
             yield return new AIStreamChunk
             {
@@ -112,7 +162,6 @@ namespace BusinessModelApp.Api.Services
 
         public Task<float[]> GetEmbeddingAsync(string text, CancellationToken ct = default)
         {
-            // Placeholder for future embedding vertical slice
             return Task.FromResult(new float[1536]);
         }
     }
