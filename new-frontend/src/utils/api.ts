@@ -34,7 +34,6 @@ api.interceptors.response.use(
       // Handle 401 Unauthorized
       if (error.response.status === 401) {
         localStorage.removeItem(config.auth.tokenKey);
-        window.location.href = '/login';
       }
 
       // Log errors if error reporting is enabled

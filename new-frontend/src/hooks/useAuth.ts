@@ -88,10 +88,15 @@ export const useAuth = () => {
     queryFn: async () => {
       const token = localStorage.getItem(config.auth.tokenKey);
       if (!token) {
-        throw new Error('No token found');
+        return null;
       }
-      const { data } = await api.get('/auth/me');
-      return data.user;
+      try {
+        const { data } = await api.get('/auth/me');
+        return data?.user || data;
+      } catch {
+        localStorage.removeItem(config.auth.tokenKey);
+        return null;
+      }
     },
     retry: false,
     enabled: Boolean(localStorage.getItem(config.auth.tokenKey)),
