@@ -15,11 +15,18 @@ interface RegisterData extends LoginCredentials {
 
 interface AuthResponse {
   token: string;
+  expiresAt: string;
   user: {
     id: string;
     email: string;
-    name: string;
+    firstName: string;
+    lastName: string;
     role: string;
+    organizationId?: string;
+    organizationName?: string;
+    defaultWorkspaceId?: string;
+    workspaceName?: string;
+    permissions?: string[];
   };
 }
 

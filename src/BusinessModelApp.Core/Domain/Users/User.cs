@@ -8,13 +8,12 @@ namespace BusinessModelApp.Core.Domain.Users
 {
     public class User : IdentityUser<Guid>, IEntity<Guid>, ISoftDeletable
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Role { get; set; } // Added for simple role handling in mock mode
-        // public string Email { get; set; } // Provided by IdentityUser
-        // public string HashedPassword { get; set; } // Provided by IdentityUser (PasswordHash)
-        // public string Salt { get; set; } // Handled by Identity's password hasher
-        public bool IsActive { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Role { get; set; } = "Member"; // Added for simple role handling
+        public Guid? OrganizationId { get; set; }
+        public Guid? DefaultWorkspaceId { get; set; }
+        public bool IsActive { get; set; } = true;
         public DateTime? LastLogin { get; set; }
         public bool IsDeleted { get; private set; }
 

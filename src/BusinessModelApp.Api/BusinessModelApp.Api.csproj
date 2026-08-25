@@ -17,12 +17,13 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BusinessModelApp.Core\BusinessModelApp.Core.csproj" />
-    <!-- <ProjectReference Include="..\BusinessModelApp.Infrastructure\BusinessModelApp.Infrastructure.csproj" /> -->
+    <ProjectReference Include="..\BusinessModelApp.Infrastructure\BusinessModelApp.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

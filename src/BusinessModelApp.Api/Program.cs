@@ -1,54 +1,128 @@
-using BusinessModelApp.Core.Interfaces;
-using BusinessModelApp.Core.Services;
+using System.Text;
 using BusinessModelApp.Api.Services;
-using BusinessModelApp.Core.Repositories;
-// using BusinessModelApp.Infrastructure.Data;
-// using BusinessModelApp.Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
 using BusinessModelApp.Core.Domain.Users;
+using BusinessModelApp.Core.Interfaces;
+using BusinessModelApp.Core.Repositories;
+using BusinessModelApp.Core.Services;
+using BusinessModelApp.Infrastructure.Data;
+using BusinessModelApp.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add CORS policy
+// 1. CORS Policy
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:3000", "http://localhost:3001") // Allow both ports
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
-// Add services to the container.
+// 2. Add controllers and SignalR
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
+
+// 3. Swagger with JWT Support
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "BusinessModelApp API", Version = "v1" });
     c.CustomSchemaIds(type => type.ToString());
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and your token.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
-// Configure DbContext with SQLite in-memory for testing
-// builder.Services.AddDbContext<AppDbContext>(options =>
-//     options.UseSqlite("DataSource=:memory:"));
+// 4. Configure Database (SQLite for local non-mock persistence)
+var dbPath = Path.Combine(builder.Environment.ContentRootPath, "businessmodelapp.db");
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(connectionString) && !connectionString.Contains("(localdb)"))
+    {
+        options.UseSqlServer(connectionString);
+    }
+    else
+    {
+        options.UseSqlite($"Data Source={dbPath}");
+    }
+});
 
-// Configure ASP.NET Core Identity
-// Identity configuration commented out for testing
-// builder.Services.AddIdentity<User, Role>(options => {
-//     // For simplicity in this context, we can relax password requirements
-//     options.Password.RequireDigit = false;
-//     options.Password.RequiredLength = 6;
-//     options.Password.RequireLowercase = false;
-//     options.Password.RequireNonAlphanumeric = false;
-//     options.Password.RequireUppercase = false;
-// })
-// .AddEntityFrameworkStores<AppDbContext>();
+// 5. Configure ASP.NET Core Identity
+builder.Services.AddIdentity<User, Role>(options =>
+{
+    options.Password.RequireDigit = false;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
 
-// Register application services and repositories
-// Register Mock Services
+// 6. Configure JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "SecureSecretKeyForBusinessModelAppAuthentication2026";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BusinessModelApp";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BusinessModelAppClient";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ValidateIssuer = true,
+        ValidIssuer = jwtIssuer,
+        ValidateAudience = true,
+        ValidAudience = jwtAudience,
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+builder.Services.AddAuthorization();
+
+// 7. Register Repositories & Services
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<ICommercialRepository, CommercialRepository>();
+
+// Register Domain Mock Services for peripheral modules
 builder.Services.AddScoped<IProductService, MockProductService>();
 builder.Services.AddScoped<IBusinessModelRepository, MockBusinessModelRepository>();
 builder.Services.AddScoped<IUserRepository, MockUserRepository>();
@@ -60,9 +134,7 @@ builder.Services.AddScoped<IStrategyService, MockStrategyService>();
 builder.Services.AddScoped<IAgentService, MockAgentService>();
 builder.Services.AddScoped<IRecommendationService, MockRecommendationService>();
 
-// builder.Services.AddScoped<IAnalyticsService, AnalyticsService>(); // Need to mock this too if used
-// builder.Services.AddScoped<IRealTimeMonitoringService, RealTimeMonitoringService>();
-// builder.Services.AddScoped<IDataExportService,// Register AI Services
+// 8. Register AI Services
 builder.Services.AddHttpClient<GeminiService>();
 builder.Services.AddHttpClient<OpenRouterService>();
 builder.Services.AddHttpClient<MistralService>();
@@ -73,15 +145,13 @@ builder.Services.AddScoped<AntigravityAIService>();
 builder.Services.AddScoped<LocalLLMService>();
 builder.Services.AddScoped<ModelManagerService>();
 
-// Register Infrastructure Services ("The Hands")
+// 9. Register Infrastructure Services & Agents
 builder.Services.AddScoped<ICommandExecutionService, CommandExecutionService>();
 builder.Services.AddScoped<IFileSystemService, FileSystemService>();
-builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IAgentBroadcaster, BusinessModelApp.Api.Services.SignalRAgentBroadcaster>();
-
-// Register Agents ("The Brain")
+builder.Services.AddScoped<IAgentBroadcaster, SignalRAgentBroadcaster>();
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.AutonomousAgent>();
 
-// Register Fallback Service as the primary IAIService
+// AI Fallback Service
 builder.Services.AddScoped<IAIService>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<FallbackAIService>>();
@@ -90,48 +160,29 @@ builder.Services.AddScoped<IAIService>(sp =>
     var mistral = sp.GetRequiredService<MistralService>();
     var antigravity = sp.GetRequiredService<AntigravityAIService>();
     var localLLM = sp.GetRequiredService<LocalLLMService>();
-    
-    // Define the fallback order: LocalLLM (if loaded) -> Gemini -> OpenRouter -> Mistral -> Antigravity
-    // We prioritize LocalLLM if it's loaded because it's free and offline.
+
     var providers = new List<IAIService> { localLLM, gemini, openRouter, mistral, antigravity };
-    
     return new FallbackAIService(providers, logger);
 });
-// builder.Services.AddHttpClient<IAIService, OpenRouterService>();
-// builder.Services.AddHttpClient<ILocalModelService, LocalModelService>();
 
 var app = builder.Build();
 
-/*
-// Seed the database
+// 10. Auto-Seed Database on Startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
-        // Ensure the database is created. 
-        var context = services.GetRequiredService<AppDbContext>();
-
-        if (app.Environment.IsDevelopment())
-        {
-            logger.LogInformation("Development environment. Deleting and recreating database...");
-            context.Database.EnsureDeleted();
-        }
-
-        // Note: In a real app, you'd use migrations. For this context, EnsureCreated is simpler.
-        context.Database.EnsureCreated(); 
-
         await SeedData.Initialize(services, logger);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "An error occurred while seeding the database.");
+        logger.LogError(ex, "An error occurred during database seeding.");
     }
 }
-*/
 
-// Configure the HTTP request pipeline.
+// 11. Pipeline Configuration
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -139,8 +190,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
-
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

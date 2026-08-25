@@ -62,6 +62,19 @@ export const endpoints = {
     register: '/auth/register',
     logout: '/auth/logout',
   },
+  leads: {
+    list: '/leads',
+    create: '/leads',
+    getById: (id: string) => `/leads/${id}`,
+    qualify: (id: string) => `/leads/${id}/qualify`,
+  },
+  opportunities: {
+    list: '/opportunities',
+    create: '/opportunities',
+    getById: (id: string) => `/opportunities/${id}`,
+    updateStage: (id: string) => `/opportunities/${id}/stage`,
+    activities: (id: string) => `/opportunities/${id}/activities`,
+  },
   analytics: {
     financialPerformance: '/analytics/financial-performance',
     businessHealth: '/analytics/business-health',
