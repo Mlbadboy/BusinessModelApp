@@ -52,7 +52,6 @@ const Strategy = () => {
     updateRiskMitigation,
     updateOpportunityStatus,
     calculateRiskScore,
-    calculateOpportunityScore,
     isLoading,
     error,
   } = useStrategy();

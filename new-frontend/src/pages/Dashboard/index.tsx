@@ -55,10 +55,10 @@ const MetricCard = ({
 );
 
 const Dashboard = () => {
-  const { financialPerformance, businessHealth, kpis, isLoading: isLoadingAnalytics } = useAnalytics();
-  const { revenueTrends, isLoading: isLoadingRevenue } = useRevenue();
-  const { trends: expenseTrends, isLoading: isLoadingExpenses } = useExpenses();
-  const { performanceTrends, isLoading: isLoadingStrategy } = useStrategy();
+  const { financialPerformance, businessHealth, isLoading: isLoadingAnalytics } = useAnalytics();
+  const { isLoading: isLoadingRevenue } = useRevenue();
+  const { isLoading: isLoadingExpenses } = useExpenses();
+  const { isLoading: isLoadingStrategy } = useStrategy();
 
   if (isLoadingAnalytics || isLoadingRevenue || isLoadingExpenses || isLoadingStrategy) {
     return <LoadingState message="Loading dashboard data..." />;

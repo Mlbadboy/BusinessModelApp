@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api, { endpoints, handleApiError } from '../utils/api';
 import { config } from '../config/env.config';
@@ -25,6 +25,7 @@ interface AuthResponse {
 
 export const useAuth = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Login mutation
   const login = useMutation<AuthResponse, Error, LoginCredentials>({
@@ -34,7 +35,8 @@ export const useAuth = () => {
     },
     onSuccess: (data) => {
       localStorage.setItem(config.auth.tokenKey, data.token);
-      navigate('/dashboard');
+      queryClient.setQueryData(['auth-status'], data.user);
+      navigate('/');
     },
     onError: (error) => {
       const { message } = handleApiError(error);
@@ -50,7 +52,8 @@ export const useAuth = () => {
     },
     onSuccess: (data) => {
       localStorage.setItem(config.auth.tokenKey, data.token);
-      navigate('/dashboard');
+      queryClient.setQueryData(['auth-status'], data.user);
+      navigate('/');
     },
     onError: (error) => {
       const { message } = handleApiError(error);
@@ -63,6 +66,7 @@ export const useAuth = () => {
     mutationFn: async () => {
       await api.post(endpoints.auth.logout);
       localStorage.removeItem(config.auth.tokenKey);
+      queryClient.removeQueries(['auth-status']);
       navigate('/login');
     },
     onError: (error) => {
@@ -83,7 +87,7 @@ export const useAuth = () => {
       return data.user;
     },
     retry: false,
-    enabled: !!localStorage.getItem(config.auth.tokenKey),
+    enabled: Boolean(localStorage.getItem(config.auth.tokenKey)),
   });
 
   return {

@@ -50,8 +50,6 @@ const Expenses = () => {
     trends,
     optimizations,
     risks,
-    analysis,
-    updateCategory,
     updateOptimizationStatus,
     isLoading,
     error,
