@@ -3,6 +3,7 @@ import api from '../utils/api';
 
 export interface AISummary {
   gatewayStatus: string;
+  trafficStatus: string;
   monthlySpend: number;
   monthlyBudgetCap: number;
   budgetPercentConsumed: number;
@@ -13,7 +14,10 @@ export interface AISummary {
   cacheHits: number;
   cacheSavings: number;
   attributedWonRevenue: number;
+  attributedAISpend?: number;
   aiRoiRatio: number;
+  attributionStatus: string;
+  attributionSummary: string;
 }
 
 export interface AITelemetryItem {
@@ -29,6 +33,8 @@ export interface AITelemetryItem {
   cacheHit: boolean;
   fallbackAttempts: number;
   requestCorrelationId: string;
+  leadId?: string | null;
+  opportunityId?: string | null;
   createdAt: string;
 }
 
@@ -83,11 +89,22 @@ export const useAIControlCenter = () => {
     },
   });
 
+  const updateTrafficStatus = useMutation({
+    mutationFn: async ({ status, reason }: { status: number; reason?: string }) => {
+      const response = await api.post('/ai-control-center/traffic-status', { status, reason });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-control-center', 'summary'] });
+    },
+  });
+
   return {
     summary: summaryQuery.data,
     telemetry: telemetryQuery.data ?? [],
     approvals: approvalsQuery.data ?? [],
     isLoading: summaryQuery.isLoading || telemetryQuery.isLoading,
     decideApproval,
+    updateTrafficStatus,
   };
 };
