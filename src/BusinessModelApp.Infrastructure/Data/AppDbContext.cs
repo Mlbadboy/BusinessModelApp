@@ -62,7 +62,14 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.Email).HasMaxLength(255);
                 entity.Property(e => e.Phone).HasMaxLength(50);
                 entity.Property(e => e.CompanyName).HasMaxLength(200);
-                entity.Property(e => e.RowVersion).IsRowVersion();
+                if (Database.IsSqlServer())
+                {
+                    entity.Property(e => e.RowVersion).IsRowVersion();
+                }
+                else
+                {
+                    entity.Property(e => e.RowVersion).IsConcurrencyToken();
+                }
 
                 entity.HasOne(e => e.Workspace)
                       .WithMany(w => w.Leads)
@@ -77,7 +84,14 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(250);
                 entity.Property(e => e.EstimatedValue).HasPrecision(18, 2);
                 entity.Property(e => e.Currency).HasMaxLength(10).HasDefaultValue("INR");
-                entity.Property(e => e.RowVersion).IsRowVersion();
+                if (Database.IsSqlServer())
+                {
+                    entity.Property(e => e.RowVersion).IsRowVersion();
+                }
+                else
+                {
+                    entity.Property(e => e.RowVersion).IsConcurrencyToken();
+                }
 
                 entity.HasOne(e => e.Workspace)
                       .WithMany(w => w.Opportunities)
