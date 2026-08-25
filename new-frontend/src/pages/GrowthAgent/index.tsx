@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -6,298 +6,389 @@ import {
   CardContent,
   Grid,
   Button,
-  Stack,
   Chip,
+  LinearProgress,
   Dialog,
+  DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
+  TextField,
+  MenuItem,
+  Alert,
 } from '@mui/material';
-import SmartToy from '@mui/icons-material/SmartToy';
-import Mic from '@mui/icons-material/Mic';
-import PlayArrow from '@mui/icons-material/PlayArrow';
-import CheckCircle from '@mui/icons-material/CheckCircle';
-import Close from '@mui/icons-material/Close';
-import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import { Layout } from '../../components/Layout/Layout';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { EvidenceDrawer, EvidenceData } from '../../components/ui/EvidenceDrawer';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import HubIcon from '@mui/icons-material/Hub';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import PsychologyIcon from '@mui/icons-material/Psychology';
 
-interface MissionStep {
-  id: number;
-  label: string;
-  detail: string;
-  status: 'pending' | 'in_progress' | 'completed';
+interface MissionTaskState {
+  id: string;
+  title: string;
+  role: string;
+  status: 'completed' | 'running' | 'blocked' | 'pending';
+  costINR: number;
+  evidenceId?: string;
+  thought: string;
 }
 
-export const GrowthAgent: React.FC = () => {
-  const [isMissionRunning, setIsMissionRunning] = useState(false);
-  const [missionStep, setMissionStep] = useState(0);
-  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
+export const GrowthAgent = () => {
+  // State
+  const [mode, setMode] = useState<'simulation' | 'live'>('simulation');
+  const [isLaunchModalOpen, setIsLaunchModalOpen] = useState<boolean>(false);
+  const [isGatedApprovalOpen, setIsGatedApprovalOpen] = useState<boolean>(false);
+  const [autonomyLevel, setAutonomyLevel] = useState<number>(3);
+  const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState<boolean>(false);
+  const [selectedEvidence, setSelectedEvidence] = useState<EvidenceData | null>(null);
 
-  const steps: MissionStep[] = [
-    { id: 1, label: 'Scanning Commercial Context', detail: 'Evaluating 14 active opportunities and 42 inbound leads.', status: missionStep >= 1 ? 'completed' : isMissionRunning && missionStep === 0 ? 'in_progress' : 'pending' },
-    { id: 2, label: 'Lead Qualification Inference', detail: 'Identified 3 high-intent enterprise contacts ready for discovery.', status: missionStep >= 2 ? 'completed' : isMissionRunning && missionStep === 1 ? 'in_progress' : 'pending' },
-    { id: 3, label: 'Synthesizing Action Recommendations', detail: 'Prepared follow-up proposal with 7% volume discount for Acme Corp.', status: missionStep >= 3 ? 'completed' : isMissionRunning && missionStep === 2 ? 'in_progress' : 'pending' },
-    { id: 4, label: 'Consequential Approval Gate', detail: 'Submitted pricing proposal to Human Approval Queue in Control Center.', status: missionStep >= 4 ? 'completed' : isMissionRunning && missionStep === 3 ? 'in_progress' : 'pending' },
+  // Mission Metrics
+  const companiesResearched = 184;
+  const prospectsDiscovered = 73;
+  const qualifiedCount = 21;
+  const outreachSent = 18;
+  const responsesReceived = 8;
+  const [opportunitiesCreated, setOpportunitiesCreated] = useState<number>(1);
+  const [pipelineGeneratedINR, setPipelineGeneratedINR] = useState<number>(2500000);
+
+  // Mission Wallet
+  const totalBudgetINR = 5000;
+  const consumedINR = 1680;
+  const reservedINR = 500;
+  const remainingINR = totalBudgetINR - consumedINR - reservedINR;
+
+  // DAG Tasks
+  const tasks: MissionTaskState[] = [
+    { id: '1', title: 'Market Demand & Macro Signals', role: 'Market Intelligence Agent', status: 'completed', costINR: 0.25, evidenceId: 'EVD-MKT-991', thought: 'Discovered emerging surge in Indian BFSI AI governance transformations.' },
+    { id: '2', title: 'Target Company Discovery', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMP-1842', thought: 'Identified 184 enterprise BFSI companies matching 500+ headcount ICP.' },
+    { id: '3', title: 'Decision Maker Identification', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.75, evidenceId: 'EVD-DM-401', thought: 'Identified VP of Transformation and Chief Digital Officers across 73 accounts.' },
+    { id: '4', title: 'ICP Qualification & Scoring', role: 'Qualification Agent', status: 'completed', costINR: 0.40, evidenceId: 'EVD-QUAL-88', thought: 'Qualified 21 tier-1 enterprise prospects with 88.5+ fit score.' },
+    { id: '5', title: 'Governed Evidence-Grounded Outreach', role: 'Outreach Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMM-710', thought: 'Dispatched personalized outreach referencing active transformation initiatives.' },
+    { id: '6', title: 'Conversation Intent Analysis', role: 'Conversation Agent', status: 'completed', costINR: 0.30, evidenceId: 'EVD-INTENT-03', thought: 'Analyzed 8 prospect responses. Confirmed 3 positive commercial intents.' },
+    { id: '7', title: 'Opportunity Registration', role: 'Commercial Closer', status: 'completed', costINR: 0.50, evidenceId: 'EVD-OPP-992', thought: 'Registered ₹25,00,000 Opportunity: Apex FinCloud Operations.' },
+    { id: '8', title: 'Commercial Proposal & Contract Terms', role: 'Proposal Agent', status: isGatedApprovalOpen ? 'blocked' : 'completed', costINR: 1.50, evidenceId: 'EVD-PROP-01', thought: 'Commercial proposal compiled. Gated on human approval under Level 3 autonomy.' },
   ];
 
   const handleStartMission = () => {
-    setIsMissionRunning(true);
-    setMissionStep(0);
-
-    const interval = setInterval(() => {
-      setMissionStep((prev) => {
-        if (prev >= 4) {
-          clearInterval(interval);
-          setIsMissionRunning(false);
-          return 4;
-        }
-        return prev + 1;
-      });
-    }, 1200);
+    setIsLaunchModalOpen(false);
+    setIsGatedApprovalOpen(true);
   };
 
-  const handleStartVoice = () => {
-    setVoiceModalOpen(true);
-    setIsListening(true);
-    setVoiceTranscript('Listening to your instructions...');
-
-    setTimeout(() => {
-      setVoiceTranscript('"How are our high-value opportunities performing this quarter?"');
-    }, 1500);
-
-    setTimeout(() => {
-      setIsListening(false);
-      setVoiceTranscript('Growth Agent: "Your top 3 opportunities represent ₹27.4L in weighted forecast. Acme Corp requires attention due to 17 days of inactivity."');
-    }, 3500);
+  const handleApproveGatedAction = () => {
+    setIsGatedApprovalOpen(false);
+    setOpportunitiesCreated(2);
+    setPipelineGeneratedINR(4350000);
   };
 
   return (
-    <ErrorBoundary>
-      <Layout>
-        <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
-          {/* Header */}
-          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                <SmartToy sx={{ color: '#00F0FF', fontSize: 28 }} />
-                <Typography variant="h1" sx={{ fontSize: '1.875rem' }}>
-                  GROWTH AGENT
-                </Typography>
-                <Chip
-                  label="Ready"
-                  size="small"
-                  sx={{
-                    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                    color: '#10B981',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    fontWeight: 600,
-                  }}
-                />
-              </Box>
-              <Typography variant="body1" color="text.secondary">
-                Autonomous commercial execution engine governed by OmniRoute AI policies.
+    <Layout>
+      <Box sx={{ p: 4, maxWidth: 1400, margin: '0 auto' }}>
+        {/* HUD Top Bar */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="h4" sx={{ fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
+                AUTONOMOUS REVENUE COCKPIT
               </Typography>
+              <Chip
+                label={mode === 'simulation' ? '◉ SIMULATION MODE (SYNTHETIC)' : '● LIVE AUTONOMY (PRODUCTION)'}
+                sx={{
+                  bgcolor: mode === 'simulation' ? 'rgba(0, 229, 255, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                  color: mode === 'simulation' ? '#00E5FF' : '#10B981',
+                  border: `1px solid ${mode === 'simulation' ? 'rgba(0, 229, 255, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                  fontWeight: 800,
+                }}
+              />
             </Box>
+            <Typography variant="body2" sx={{ color: '#94A3B8' }}>
+              Mission Planner • Governed Multi-Agent DAG Execution • Autonomous Operational Loop
+            </Typography>
+          </Box>
 
+          <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
               variant="outlined"
-              startIcon={<Mic />}
-              onClick={handleStartVoice}
-              sx={{ borderColor: '#00F0FF', color: '#00F0FF' }}
+              onClick={() => setMode(mode === 'simulation' ? 'live' : 'simulation')}
+              sx={{ color: '#94A3B8', borderColor: 'rgba(255, 255, 255, 0.15)' }}
             >
-              Talk to Growth Agent
+              Switch to {mode === 'simulation' ? 'Live Autonomy' : 'Simulation Mode'}
             </Button>
-          </Box>
-
-          {/* Today's Mission Briefing Card */}
-          <Card sx={{ mb: 4, backgroundColor: '#0D1118', border: '1px solid rgba(0, 240, 255, 0.25)' }}>
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Box>
-                  <Typography variant="h5" fontWeight="bold">
-                    Today's Commercial Mission
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Prioritized autonomous commercial tasks for workspace growth.
-                  </Typography>
-                </Box>
-
-                <Button
-                  variant="contained"
-                  startIcon={<PlayArrow />}
-                  disabled={isMissionRunning}
-                  onClick={handleStartMission}
-                >
-                  {isMissionRunning ? 'Executing Mission...' : 'Start Mission'}
-                </Button>
-              </Box>
-
-              <Grid container spacing={2} sx={{ my: 1 }}>
-                <Grid item xs={12} sm={4}>
-                  <Box sx={{ p: 2, borderRadius: 1.5, backgroundColor: '#111722', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      LEAD QUALIFICATION
-                    </Typography>
-                    <Typography variant="h4" fontWeight="bold" sx={{ color: '#00F0FF', my: 0.5 }}>
-                      12 Leads
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Pending automated scoring
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                  <Box sx={{ p: 2, borderRadius: 1.5, backgroundColor: '#111722', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      OPPORTUNITY FOLLOW-UP
-                    </Typography>
-                    <Typography variant="h4" fontWeight="bold" sx={{ color: '#38BDF8', my: 0.5 }}>
-                      4 Deals
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Exceeding 7 days in stage
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                <Grid item xs={12} sm={4}>
-                  <Box sx={{ p: 2, borderRadius: 1.5, backgroundColor: '#111722', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <Typography variant="caption" color="text.secondary">
-                      AT-RISK INTERVENTIONS
-                    </Typography>
-                    <Typography variant="h4" fontWeight="bold" sx={{ color: '#EF4444', my: 0.5 }}>
-                      2 Blockers
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Pending SLA reviews
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Mission Execution Pipeline Tracker */}
-          <Card sx={{ mb: 4 }}>
-            <CardContent sx={{ p: 3 }}>
-              <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
-                Agent Execution Pipeline
-              </Typography>
-
-              <Stack spacing={2}>
-                {steps.map((step) => (
-                  <Box
-                    key={step.id}
-                    sx={{
-                      p: 2,
-                      borderRadius: 1.5,
-                      backgroundColor: '#111722',
-                      border: `1px solid ${
-                        step.status === 'completed'
-                          ? 'rgba(16, 185, 129, 0.3)'
-                          : step.status === 'in_progress'
-                          ? 'rgba(0, 240, 255, 0.4)'
-                          : 'rgba(255, 255, 255, 0.06)'
-                      }`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 1.5,
-                    }}
-                  >
-                    <Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 0.5 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {step.id}. {step.label}
-                        </Typography>
-                        {step.status === 'completed' && (
-                          <StatusBadge type="approved" customLabel="Completed" />
-                        )}
-                        {step.status === 'in_progress' && (
-                          <StatusBadge type="interpretation" customLabel="Analyzing..." />
-                        )}
-                      </Box>
-                      <Typography variant="body2" color="text.secondary">
-                        {step.detail}
-                      </Typography>
-                    </Box>
-
-                    {step.status === 'completed' ? (
-                      <CheckCircle sx={{ color: '#10B981' }} />
-                    ) : step.status === 'in_progress' ? (
-                      <AutoAwesome sx={{ color: '#00F0FF', animation: 'spin 2s linear infinite' }} />
-                    ) : null}
-                  </Box>
-                ))}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Voice AI Interaction Modal */}
-        <Dialog
-          open={voiceModalOpen}
-          onClose={() => setVoiceModalOpen(false)}
-          PaperProps={{
-            sx: {
-              backgroundColor: '#070A0F',
-              border: '1px solid rgba(0, 240, 255, 0.4)',
-              boxShadow: '0 0 50px rgba(0, 240, 255, 0.2)',
-              minWidth: 440,
-              textAlign: 'center',
-              p: 3,
-            },
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <IconButton onClick={() => setVoiceModalOpen(false)} sx={{ color: 'text.secondary' }}>
-              <Close fontSize="small" />
-            </IconButton>
-          </Box>
-
-          <DialogContent>
-            {/* Glowing HUD Circle */}
-            <Box
+            <Button
+              variant="contained"
+              startIcon={<RocketLaunchIcon />}
+              onClick={() => setIsLaunchModalOpen(true)}
               sx={{
-                width: 90,
-                height: 90,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(0, 240, 255, 0.1)',
-                border: '2px solid #00F0FF',
-                boxShadow: isListening ? '0 0 30px #00F0FF' : '0 0 10px #00F0FF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mx: 'auto',
-                mb: 3,
-                animation: isListening ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                background: 'linear-gradient(135deg, #00E5FF, #00B0FF)',
+                color: '#0A0E17',
+                fontWeight: 800,
+                boxShadow: '0 0 20px rgba(0, 229, 255, 0.4)',
+                '&:hover': { background: '#00E5FF' },
               }}
             >
-              <Mic sx={{ fontSize: 36, color: '#00F0FF' }} />
-            </Box>
+              Launch Mission
+            </Button>
+          </Box>
+        </Box>
 
-            <Typography variant="h5" fontWeight="bold" sx={{ color: '#F8FAFC', mb: 1 }}>
-              {isListening ? 'Growth Agent Listening...' : 'Growth Agent Response'}
-            </Typography>
+        {/* Gated Approval Banner */}
+        {isGatedApprovalOpen && (
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 3,
+              bgcolor: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              color: '#FDE68A',
+            }}
+            action={
+              <Button
+                color="warning"
+                variant="contained"
+                size="small"
+                onClick={handleApproveGatedAction}
+                sx={{ fontWeight: 800 }}
+              >
+                Approve Proposal (₹25,00,000)
+              </Button>
+            }
+          >
+            <strong>POLICY GATE TRIGGERED:</strong> Proposal Agent drafted a ₹25,00,000 enterprise proposal. Commercial commitments require human executive approval under Autonomy Level 3.
+          </Alert>
+        )}
 
-            <Typography variant="body1" sx={{ color: '#94A3B8', minHeight: 60 }}>
-              {voiceTranscript}
-            </Typography>
+        {/* Real-time Telemetry & Wallet Row */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={3}>
+            <Card sx={{ bgcolor: '#0F172A', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#00E5FF', mb: 1 }}>
+                  <TrendingUpIcon fontSize="small" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>PIPELINE GENERATED</Typography>
+                </Box>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
+                  ₹{(pipelineGeneratedINR / 100000).toFixed(1)}L
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#10B981' }}>
+                  Target: ₹25.0L ({((pipelineGeneratedINR / 2500000) * 100).toFixed(0)}% achieved)
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <Card sx={{ bgcolor: '#0F172A', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#00E5FF', mb: 1 }}>
+                  <HubIcon fontSize="small" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>DISCOVERY FUNNEL</Typography>
+                </Box>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
+                  {companiesResearched} Co. → {prospectsDiscovered} DM
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                  {qualifiedCount} Qualified ({((qualifiedCount / prospectsDiscovered) * 100).toFixed(0)}% fit rate)
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <Card sx={{ bgcolor: '#0F172A', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#00E5FF', mb: 1 }}>
+                  <PsychologyIcon fontSize="small" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>CONVERSATIONS</Typography>
+                </Box>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
+                  {outreachSent} Sent → {responsesReceived} Replies
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#10B981' }}>
+                  {opportunitiesCreated} Opportunity Active
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
+            <Card sx={{ bgcolor: '#0F172A', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: 2 }}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#00E5FF', mb: 1 }}>
+                  <AccountBalanceWalletIcon fontSize="small" />
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>MISSION WALLET</Typography>
+                </Box>
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
+                  ₹{consumedINR} / ₹{totalBudgetINR}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={(consumedINR / totalBudgetINR) * 100}
+                  sx={{ mt: 1, mb: 0.5, bgcolor: 'rgba(255,255,255,0.1)', '& .MuiLinearProgress-bar': { bgcolor: '#00E5FF' } }}
+                />
+                <Typography variant="caption" sx={{ color: '#94A3B8' }}>
+                  Remaining: ₹{remainingINR} (Hold: ₹{reservedINR})
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {/* Live Multi-Agent DAG Graph */}
+        <Typography variant="h6" sx={{ fontWeight: 700, color: '#F8FAFC', mb: 2 }}>
+          Mission #001: Execution DAG & Thought Stream
+        </Typography>
+
+        <Grid container spacing={2}>
+          {tasks.map((t, idx) => (
+            <Grid item xs={12} key={t.id}>
+              <Card
+                sx={{
+                  bgcolor: '#0F172A',
+                  border: `1px solid ${t.status === 'blocked' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                  borderRadius: 2,
+                  p: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        bgcolor: t.status === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: t.status === 'completed' ? '#10B981' : '#F59E0B',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {idx + 1}
+                    </Box>
+                    <Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#F8FAFC' }}>
+                          {t.title}
+                        </Typography>
+                        <Chip label={t.role} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.06)', color: '#94A3B8', fontSize: '0.75rem' }} />
+                        {t.evidenceId && (
+                          <Chip
+                            label={t.evidenceId}
+                            size="small"
+                            onClick={() => {
+                              setSelectedEvidence({
+                                title: `Evidence Record: ${t.evidenceId}`,
+                                score: 88,
+                                explanation: t.thought,
+                                formula: 'ICP_Match_Score = (Headcount * 0.35) + (Tech_Signal * 0.40) + (Contactability * 0.25)',
+                                confidenceScore: 0.94,
+                                evidenceItems: [
+                                  { id: t.evidenceId || 'EVD-01', label: 'Research Token', value: t.evidenceId || 'EVD-01' },
+                                  { id: 'PROV', label: 'Data Provenance', value: 'Verified Public Filing & Transformation Signal' },
+                                ],
+                                underlyingMetrics: [
+                                  { label: 'Agent Role', value: t.role },
+                                  { label: 'FinOps Budget Deduction', value: `₹${t.costINR.toFixed(2)}` },
+                                ],
+                              });
+                              setEvidenceDrawerOpen(true);
+                            }}
+                            sx={{ bgcolor: 'rgba(0, 229, 255, 0.1)', color: '#00E5FF', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
+                        {t.thought}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Chip
+                      label={t.status.toUpperCase()}
+                      size="small"
+                      sx={{
+                        bgcolor: t.status === 'completed' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: t.status === 'completed' ? '#10B981' : '#F59E0B',
+                        fontWeight: 800,
+                        fontSize: '0.75rem',
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ display: 'block', color: '#64748B', mt: 0.5 }}>
+                      Cost: ₹{t.costINR.toFixed(2)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* Launch Mission Modal */}
+        <Dialog open={isLaunchModalOpen} onClose={() => setIsLaunchModalOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ bgcolor: '#0A0E17', color: '#F8FAFC', fontWeight: 800 }}>
+            Launch Autonomous Revenue Mission
+          </DialogTitle>
+          <DialogContent sx={{ bgcolor: '#0A0E17', pt: 2 }}>
+            <TextField
+              label="Mission Objective"
+              fullWidth
+              defaultValue="Generate ₹25L qualified pipeline in BFSI"
+              margin="normal"
+              InputLabelProps={{ style: { color: '#94A3B8' } }}
+              sx={{ input: { color: '#F8FAFC' } }}
+            />
+            <TextField
+              label="Target Industry"
+              fullWidth
+              defaultValue="Enterprise BFSI"
+              margin="normal"
+              InputLabelProps={{ style: { color: '#94A3B8' } }}
+              sx={{ input: { color: '#F8FAFC' } }}
+            />
+            <TextField
+              select
+              label="Autonomy Level"
+              fullWidth
+              value={autonomyLevel}
+              onChange={(e) => setAutonomyLevel(Number(e.target.value))}
+              margin="normal"
+              InputLabelProps={{ style: { color: '#94A3B8' } }}
+              sx={{ color: '#F8FAFC' }}
+            >
+              <MenuItem value={0}>Level 0 — Observe (Read-only)</MenuItem>
+              <MenuItem value={1}>Level 1 — Recommend (Suggest actions)</MenuItem>
+              <MenuItem value={2}>Level 2 — Assisted (Draft outreach, human approves)</MenuItem>
+              <MenuItem value={3}>Level 3 — Controlled Autonomy (Autonomous research/outreach, gated proposals)</MenuItem>
+              <MenuItem value={4}>Level 4 — Autonomous Operations (Full multi-step operational loop)</MenuItem>
+            </TextField>
+            <TextField
+              label="Mission Wallet Budget (INR)"
+              fullWidth
+              defaultValue="5000"
+              margin="normal"
+              InputLabelProps={{ style: { color: '#94A3B8' } }}
+              sx={{ input: { color: '#F8FAFC' } }}
+            />
           </DialogContent>
-          <DialogActions sx={{ justifyContent: 'center' }}>
-            <Button variant="outlined" onClick={() => setVoiceModalOpen(false)}>
-              End Conversation
+          <DialogActions sx={{ bgcolor: '#0A0E17', p: 2 }}>
+            <Button onClick={() => setIsLaunchModalOpen(false)} sx={{ color: '#94A3B8' }}>Cancel</Button>
+            <Button variant="contained" onClick={handleStartMission} sx={{ background: '#00E5FF', color: '#0A0E17', fontWeight: 800 }}>
+              Confirm & Launch
             </Button>
           </DialogActions>
         </Dialog>
-      </Layout>
-    </ErrorBoundary>
+
+        {/* Evidence Drawer */}
+        <EvidenceDrawer
+          open={evidenceDrawerOpen}
+          onClose={() => setEvidenceDrawerOpen(false)}
+          data={selectedEvidence}
+        />
+      </Box>
+    </Layout>
   );
 };
 

@@ -163,6 +163,10 @@ builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IApprovalService,
 builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
 builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, BusinessModelApp.Core.Services.AIROIService>();
 
+// Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService, BusinessModelApp.Core.Services.AgentOrchestratorService>();
+
 // 9. Register Production Health Checks
 builder.Services.AddScoped<AppDbContextHealthCheck>();
 builder.Services.AddScoped<OmniRouteHealthCheck>();
