@@ -16,6 +16,10 @@ namespace BusinessModelApp.Core.AI
         public string? AgentId { get; set; }
         public string RequestCorrelationId { get; set; } = Guid.NewGuid().ToString("N");
 
+        // Commercial attribution identifiers
+        public Guid? LeadId { get; set; }
+        public Guid? OpportunityId { get; set; }
+
         public Dictionary<string, string> Metadata { get; set; } = new Dictionary<string, string>();
     }
 }

@@ -25,6 +25,8 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.AI.Governance.AIUsageDaily> AIUsageDailies { get; set; }
         public DbSet<BusinessModelApp.Core.AI.Governance.AIBudgetPolicy> AIBudgetPolicies { get; set; }
         public DbSet<BusinessModelApp.Core.AI.Governance.ApprovalRequest> ApprovalRequests { get; set; }
+        public DbSet<BusinessModelApp.Core.AI.Governance.AITrafficControlPolicy> AITrafficControlPolicies { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Auth.RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -60,6 +62,7 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.Email).HasMaxLength(255);
                 entity.Property(e => e.Phone).HasMaxLength(50);
                 entity.Property(e => e.CompanyName).HasMaxLength(200);
+                entity.Property(e => e.RowVersion).IsRowVersion();
 
                 entity.HasOne(e => e.Workspace)
                       .WithMany(w => w.Leads)
@@ -74,6 +77,7 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(250);
                 entity.Property(e => e.EstimatedValue).HasPrecision(18, 2);
                 entity.Property(e => e.Currency).HasMaxLength(10).HasDefaultValue("INR");
+                entity.Property(e => e.RowVersion).IsRowVersion();
 
                 entity.HasOne(e => e.Workspace)
                       .WithMany(w => w.Opportunities)
@@ -198,6 +202,28 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.RequesterName).HasMaxLength(150);
                 entity.Property(e => e.DecidedByName).HasMaxLength(150);
                 entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId, e.Status });
+            });
+
+            // AITrafficControlPolicy (Kill-switch)
+            modelBuilder.Entity<BusinessModelApp.Core.AI.Governance.AITrafficControlPolicy>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DisabledReason).HasMaxLength(255);
+                entity.Property(e => e.UpdatedByName).HasMaxLength(150);
+                entity.HasIndex(e => new { e.OrganizationId, e.WorkspaceId }).IsUnique();
+            });
+
+            // RefreshToken
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Auth.RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Token).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.CreatedByIp).HasMaxLength(50);
+                entity.Property(e => e.RevokedByIp).HasMaxLength(50);
+                entity.Property(e => e.ReplacedByToken).HasMaxLength(255);
+                entity.Property(e => e.RevocationReason).HasMaxLength(255);
+                entity.HasIndex(e => e.Token).IsUnique();
+                entity.HasIndex(e => new { e.UserId, e.ExpiresAt });
             });
         }
     }

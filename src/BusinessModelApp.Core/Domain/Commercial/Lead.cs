@@ -36,6 +36,7 @@ namespace BusinessModelApp.Core.Domain.Commercial
         public string Notes { get; set; } = string.Empty;
         public Guid? AssignedToUserId { get; set; }
         public bool IsDeleted { get; private set; }
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
         // Navigation
         public virtual Workspace Workspace { get; set; }

@@ -21,6 +21,11 @@ namespace BusinessModelApp.Core.AI
         public int FallbackAttempts { get; set; }
         public string RequestCorrelationId { get; set; } = string.Empty;
         public string? OmniRouteRequestId { get; set; }
+        
+        // Commercial Journey Attribution
+        public Guid? LeadId { get; set; }
+        public Guid? OpportunityId { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

@@ -11,6 +11,7 @@ namespace BusinessModelApp.Tests.AI
     public class FakeOmniRouteHttpHandler : HttpMessageHandler
     {
         public List<HttpRequestMessage> CapturedRequests { get; } = new List<HttpRequestMessage>();
+        public List<string> CapturedRequestBodies { get; } = new List<string>();
         public string ResponseContent { get; set; } = "Executive brief summary from OmniRoute.";
         public string ModelReturned { get; set; } = "anthropic/claude-3-5-sonnet";
         public string ProviderReturned { get; set; } = "OmniRoute";
@@ -22,6 +23,11 @@ namespace BusinessModelApp.Tests.AI
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CapturedRequests.Add(request);
+            if (request.Content != null)
+            {
+                var body = request.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+                CapturedRequestBodies.Add(body);
+            }
 
             if (request.RequestUri?.AbsolutePath.EndsWith("health") == true)
             {

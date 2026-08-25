@@ -154,6 +154,8 @@ builder.Services.AddScoped<BusinessModelApp.Infrastructure.Services.IBudgetReser
 builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IApprovalService, BusinessModelApp.Infrastructure.Services.ApprovalService>();
 builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
 
+builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, BusinessModelApp.Core.Services.AIROIService>();
+
 // Backward compatibility adapter
 builder.Services.AddScoped<IAIService, BusinessModelApp.Api.Services.AIServiceAdapter>();
 
@@ -181,7 +183,25 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
     }
 }
 
-// 11. Pipeline Configuration
+// 11. Security Headers & Correlation Middleware
+app.Use(async (context, next) =>
+{
+    // Security Headers
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    // Correlation ID
+    if (!context.Request.Headers.TryGetValue("X-Correlation-Id", out var correlationId) || string.IsNullOrWhiteSpace(correlationId))
+    {
+        correlationId = Guid.NewGuid().ToString("N");
+    }
+    context.Response.Headers.Append("X-Correlation-Id", correlationId);
+
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

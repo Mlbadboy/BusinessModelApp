@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -21,6 +22,8 @@ namespace BusinessModelApp.Infrastructure.AI.OmniRoute
             CancellationToken ct = default);
 
         Task<bool> CheckHealthAsync(CancellationToken ct = default);
+        bool IsCircuitBreakerOpen { get; }
+        void ResetCircuitBreaker();
     }
 
     public class OmniRouteClient : IOmniRouteClient
@@ -28,6 +31,35 @@ namespace BusinessModelApp.Infrastructure.AI.OmniRoute
         private readonly HttpClient _httpClient;
         private readonly OmniRouteOptions _options;
         private readonly ILogger<OmniRouteClient> _logger;
+
+        private int _consecutiveFailures = 0;
+        private DateTime? _circuitBreakerTripTime = null;
+        private const int CircuitBreakerThreshold = 5;
+        private static readonly TimeSpan CircuitBreakerCooldown = TimeSpan.FromSeconds(30);
+
+        public bool IsCircuitBreakerOpen
+        {
+            get
+            {
+                if (_consecutiveFailures >= CircuitBreakerThreshold)
+                {
+                    if (_circuitBreakerTripTime.HasValue &&
+                        DateTime.UtcNow - _circuitBreakerTripTime.Value < CircuitBreakerCooldown)
+                    {
+                        return true;
+                    }
+                    // Cooldown expired: half-open probe
+                    return false;
+                }
+                return false;
+            }
+        }
+
+        public void ResetCircuitBreaker()
+        {
+            _consecutiveFailures = 0;
+            _circuitBreakerTripTime = null;
+        }
 
         public OmniRouteClient(
             HttpClient httpClient,
@@ -58,6 +90,12 @@ namespace BusinessModelApp.Infrastructure.AI.OmniRoute
             AIRoutingPolicy policy,
             CancellationToken ct = default)
         {
+            if (IsCircuitBreakerOpen)
+            {
+                _logger.LogWarning("OmniRoute Circuit Breaker is OPEN due to recent upstream failures.");
+                throw new InvalidOperationException("OmniRoute gateway is temporarily unavailable (Circuit Breaker OPEN).");
+            }
+
             var stopwatch = Stopwatch.StartNew();
 
             var messages = new List<object>();
@@ -78,62 +116,107 @@ namespace BusinessModelApp.Infrastructure.AI.OmniRoute
                 stream = false
             };
 
-            var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+            var jsonPayload = JsonSerializer.Serialize(payload);
 
-            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
-            {
-                Content = jsonContent
-            };
+            // Retry policy: up to 3 attempts with exponential backoff & jitter for transient 429/503
+            const int maxRetries = 3;
+            HttpResponseMessage? responseMessage = null;
+            string responseBody = string.Empty;
 
-            // Attach server-derived correlation metadata (never agent-supplied or client-supplied)
-            if (request.OrganizationId.HasValue)
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                httpRequest.Headers.TryAddWithoutValidation("X-Organization-Id", request.OrganizationId.Value.ToString());
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
+                {
+                    Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json")
+                };
+
+                if (request.OrganizationId.HasValue)
+                {
+                    httpRequest.Headers.TryAddWithoutValidation("X-Organization-Id", request.OrganizationId.Value.ToString());
+                }
+
+                if (request.WorkspaceId.HasValue)
+                {
+                    httpRequest.Headers.TryAddWithoutValidation("X-Workspace-Id", request.WorkspaceId.Value.ToString());
+                }
+
+                if (request.UserId.HasValue)
+                {
+                    httpRequest.Headers.TryAddWithoutValidation("X-User-Id", request.UserId.Value.ToString());
+                }
+
+                httpRequest.Headers.TryAddWithoutValidation("X-Correlation-Id", request.RequestCorrelationId);
+                httpRequest.Headers.TryAddWithoutValidation("X-Task-Type", request.TaskType.ToString());
+
+                try
+                {
+                    responseMessage = await _httpClient.SendAsync(httpRequest, ct);
+                    responseBody = await responseMessage.Content.ReadAsStringAsync(ct);
+
+                    if (responseMessage.IsSuccessStatusCode)
+                    {
+                        // Successful response: reset failure count
+                        ResetCircuitBreaker();
+                        break;
+                    }
+
+                    // Transient status codes eligible for retry
+                    if ((responseMessage.StatusCode == HttpStatusCode.TooManyRequests || 
+                         responseMessage.StatusCode == HttpStatusCode.ServiceUnavailable ||
+                         responseMessage.StatusCode == HttpStatusCode.GatewayTimeout) && attempt < maxRetries)
+                    {
+                        var jitterMs = Random.Shared.Next(50, 200);
+                        var delayMs = (int)(Math.Pow(2, attempt) * 100) + jitterMs;
+                        _logger.LogWarning("OmniRoute transient status {Status} on attempt {Attempt}. Retrying in {Delay}ms...",
+                            responseMessage.StatusCode, attempt, delayMs);
+                        await Task.Delay(delayMs, ct);
+                        continue;
+                    }
+
+                    // Non-transient failure
+                    break;
+                }
+                catch (Exception ex) when (attempt < maxRetries && !ct.IsCancellationRequested)
+                {
+                    var delayMs = (int)(Math.Pow(2, attempt) * 100) + Random.Shared.Next(50, 150);
+                    _logger.LogWarning(ex, "OmniRoute transient transport exception on attempt {Attempt}. Retrying in {Delay}ms...", attempt, delayMs);
+                    await Task.Delay(delayMs, ct);
+                }
+                catch (Exception ex)
+                {
+                    stopwatch.Stop();
+                    RecordFailure();
+                    _logger.LogError(ex, "OmniRoute request failed after {ElapsedMs}ms for task {TaskType}",
+                        stopwatch.ElapsedMilliseconds, request.TaskType);
+                    throw new InvalidOperationException($"OmniRoute gateway communication failure: {ex.Message}", ex);
+                }
             }
 
-            if (request.WorkspaceId.HasValue)
-            {
-                httpRequest.Headers.TryAddWithoutValidation("X-Workspace-Id", request.WorkspaceId.Value.ToString());
-            }
-
-            if (request.UserId.HasValue)
-            {
-                httpRequest.Headers.TryAddWithoutValidation("X-User-Id", request.UserId.Value.ToString());
-            }
-
-            httpRequest.Headers.TryAddWithoutValidation("X-Correlation-Id", request.RequestCorrelationId);
-            httpRequest.Headers.TryAddWithoutValidation("X-Task-Type", request.TaskType.ToString());
-
-            _logger.LogInformation("Dispatching AI task {TaskType} to OmniRoute via strategy '{Model}' (CorrId: {CorrId})",
-                request.TaskType, model, request.RequestCorrelationId);
-
-            HttpResponseMessage responseMessage;
-            try
-            {
-                responseMessage = await _httpClient.SendAsync(httpRequest, ct);
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                _logger.LogError(ex, "OmniRoute request failed after {ElapsedMs}ms for task {TaskType}",
-                    stopwatch.ElapsedMilliseconds, request.TaskType);
-                throw new InvalidOperationException($"OmniRoute gateway communication failure: {ex.Message}", ex);
-            }
-
-            var responseBody = await responseMessage.Content.ReadAsStringAsync(ct);
             stopwatch.Stop();
 
-            if (!responseMessage.IsSuccessStatusCode)
+            if (responseMessage == null || !responseMessage.IsSuccessStatusCode)
             {
-                _logger.LogError("OmniRoute returned HTTP {StatusCode}: {ResponseBody}", responseMessage.StatusCode, responseBody);
-                throw new HttpRequestException($"OmniRoute returned status code {responseMessage.StatusCode}: {responseBody}");
+                RecordFailure();
+                var status = responseMessage?.StatusCode.ToString() ?? "Unknown";
+                _logger.LogError("OmniRoute returned HTTP {StatusCode}: {ResponseBody}", status, responseBody);
+                throw new HttpRequestException($"OmniRoute returned status code {status}: {responseBody}");
             }
 
             return OmniRouteResponseMapper.MapFromChatCompletionJson(responseBody, stopwatch.ElapsedMilliseconds);
         }
 
+        private void RecordFailure()
+        {
+            Interlocked.Increment(ref _consecutiveFailures);
+            if (_consecutiveFailures >= CircuitBreakerThreshold)
+            {
+                _circuitBreakerTripTime = DateTime.UtcNow;
+            }
+        }
+
         public async Task<bool> CheckHealthAsync(CancellationToken ct = default)
         {
+            if (IsCircuitBreakerOpen) return false;
             try
             {
                 var response = await _httpClient.GetAsync("health", ct);

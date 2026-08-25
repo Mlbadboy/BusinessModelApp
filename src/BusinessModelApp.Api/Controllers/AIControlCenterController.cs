@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using BusinessModelApp.Core.AI.Governance;
 using BusinessModelApp.Core.Interfaces;
+using BusinessModelApp.Core.Services;
 using BusinessModelApp.Infrastructure.AI.OmniRoute;
 using BusinessModelApp.Infrastructure.Data;
 using BusinessModelApp.Infrastructure.Services;
@@ -22,19 +23,22 @@ namespace BusinessModelApp.Api.Controllers
         private readonly IOmniRouteClient _omniClient;
         private readonly IBudgetReservationService _budgetService;
         private readonly IApprovalService _approvalService;
+        private readonly IAIROIService _roiService;
 
         public AIControlCenterController(
             AppDbContext context,
             IUserContextService userContext,
             IOmniRouteClient omniClient,
             IBudgetReservationService budgetService,
-            IApprovalService approvalService)
+            IApprovalService approvalService,
+            IAIROIService roiService)
         {
             _context = context;
             _userContext = userContext;
             _omniClient = omniClient;
             _budgetService = budgetService;
             _approvalService = approvalService;
+            _roiService = roiService;
         }
 
         [HttpGet("summary")]
@@ -61,28 +65,83 @@ namespace BusinessModelApp.Api.Controllers
             var cacheHits = mtdUsage.Sum(u => u.CacheHits);
             var avgLatency = totalRequests > 0 ? (double)totalLatency / totalRequests : 850.0;
 
-            // AI ROI Attribution (Attributed Opportunity Value)
-            var wonRevenue = await _context.Opportunities
-                .Where(o => o.WorkspaceId == targetWorkspaceId && o.Stage == Core.Domain.Commercial.OpportunityStage.ClosedWon)
-                .SumAsync(o => (decimal?)o.EstimatedValue) ?? 0m;
+            // Deterministic AI ROI Attribution via Commercial Journey Linkage
+            var aiCalls = await _context.AICallRecords
+                .Where(r => r.WorkspaceId == targetWorkspaceId)
+                .ToListAsync();
 
-            var aiRoiRatio = totalSpent > 0 ? (double)(wonRevenue / totalSpent) : 0.0;
+            var opps = await _context.Opportunities
+                .Where(o => o.WorkspaceId == targetWorkspaceId)
+                .ToListAsync();
+
+            var leads = await _context.Leads
+                .Where(l => l.WorkspaceId == targetWorkspaceId)
+                .ToListAsync();
+
+            var roiResult = _roiService.CalculateDeterministicRoi(targetWorkspaceId, aiCalls, opps, leads);
+
+            // Traffic status
+            var trafficPolicy = await _context.AITrafficControlPolicies
+                .FirstOrDefaultAsync(p => p.OrganizationId == orgId && (p.WorkspaceId == targetWorkspaceId || p.WorkspaceId == null));
+
+            var trafficStatus = trafficPolicy?.Status.ToString() ?? "Enabled";
 
             return Ok(new
             {
                 gatewayStatus = isHealthy ? "Healthy" : "Degraded",
+                trafficStatus = trafficStatus,
                 monthlySpend = totalSpent,
                 monthlyBudgetCap = policy.MonthlyBudgetCap,
                 budgetPercentConsumed = policy.MonthlyBudgetCap > 0 ? (totalSpent / policy.MonthlyBudgetCap) * 100m : 0m,
-                totalRequests = totalRequests > 0 ? totalRequests : await _context.AICallRecords.CountAsync(r => r.WorkspaceId == targetWorkspaceId),
+                totalRequests = totalRequests > 0 ? totalRequests : aiCalls.Count,
                 totalTokens,
                 averageLatencyMs = avgLatency,
                 fallbackCount,
                 cacheHits,
                 cacheSavings = cacheHits * 0.05m,
-                attributedWonRevenue = wonRevenue,
-                aiRoiRatio
+                
+                // Deterministic AI ROI & Attribution Metrics
+                attributedWonRevenue = roiResult.AttributedClosedWonRevenue,
+                attributedAISpend = roiResult.AttributedAISpend,
+                aiRoiRatio = roiResult.NetAIRoiRatio,
+                attributionStatus = roiResult.AttributionStatus.ToString(),
+                attributionSummary = roiResult.AttributionSummary
             });
+        }
+
+        [HttpPost("traffic-status")]
+        public async Task<ActionResult<AITrafficControlPolicy>> UpdateTrafficStatus(
+            [FromBody] UpdateTrafficStatusDto dto,
+            [FromQuery] Guid? workspaceId)
+        {
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
+            var orgId = await _userContext.GetCurrentOrganizationIdAsync();
+
+            var policy = await _context.AITrafficControlPolicies
+                .FirstOrDefaultAsync(p => p.OrganizationId == orgId && p.WorkspaceId == targetWorkspaceId);
+
+            if (policy == null)
+            {
+                policy = new AITrafficControlPolicy
+                {
+                    OrganizationId = orgId,
+                    WorkspaceId = targetWorkspaceId,
+                    Status = dto.Status,
+                    DisabledReason = dto.Reason,
+                    UpdatedByName = User.Identity?.Name ?? "Admin"
+                };
+                _context.AITrafficControlPolicies.Add(policy);
+            }
+            else
+            {
+                policy.Status = dto.Status;
+                policy.DisabledReason = dto.Reason;
+                policy.UpdatedByName = User.Identity?.Name ?? "Admin";
+                policy.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(policy);
         }
 
         [HttpGet("telemetry")]
@@ -107,6 +166,8 @@ namespace BusinessModelApp.Api.Controllers
                     r.CacheHit,
                     r.FallbackAttempts,
                     r.RequestCorrelationId,
+                    r.LeadId,
+                    r.OpportunityId,
                     r.CreatedAt
                 })
                 .ToListAsync();
@@ -147,6 +208,12 @@ namespace BusinessModelApp.Api.Controllers
 
             return Ok(result);
         }
+    }
+
+    public class UpdateTrafficStatusDto
+    {
+        public AITrafficStatus Status { get; set; }
+        public string? Reason { get; set; }
     }
 
     public class DecideApprovalDto

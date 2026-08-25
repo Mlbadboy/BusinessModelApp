@@ -8,6 +8,7 @@ using BusinessModelApp.Core.Interfaces;
 using BusinessModelApp.Infrastructure.AI.OmniRoute;
 using BusinessModelApp.Infrastructure.Data;
 using BusinessModelApp.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BusinessModelApp.Api.Services
@@ -69,10 +70,22 @@ namespace BusinessModelApp.Api.Services
             var orgIdVal = request.OrganizationId.GetValueOrDefault();
             var wsIdVal = request.WorkspaceId.GetValueOrDefault();
 
-            // 2. Resolve approved Routing Policy Profile
+            // 2. EMERGENCY KILL-SWITCH CHECK: Verify organization/workspace traffic status
+            var trafficPolicy = await _context.AITrafficControlPolicies
+                .FirstOrDefaultAsync(p => p.OrganizationId == orgIdVal && (p.WorkspaceId == wsIdVal || p.WorkspaceId == null), ct);
+
+            if (trafficPolicy != null && trafficPolicy.Status == AITrafficStatus.EmergencyDisabled)
+            {
+                _logger.LogWarning("AI request blocked by Emergency Kill-Switch for Org {OrgId}. Reason: {Reason}",
+                    orgIdVal, trafficPolicy.DisabledReason);
+                throw new AIKillSwitchActiveException(
+                    orgIdVal, trafficPolicy.DisabledReason ?? "Administrator emergency disabled all AI execution.");
+            }
+
+            // 3. Resolve approved Routing Policy Profile
             var policy = _policyService.ResolvePolicy(request.TaskType, request.Preference);
 
-            // 3. AI FINOPS GOVERNANCE: Atomic Budget Reservation
+            // 4. AI FINOPS GOVERNANCE: Atomic Budget Reservation
             var estimatedCost = policy.MaxEstimatedCost ?? 0.10m;
             var reservation = await _budgetService.ReserveBudgetAsync(orgIdVal, wsIdVal, estimatedCost, ct);
             if (!reservation.IsAllowed)
@@ -85,18 +98,18 @@ namespace BusinessModelApp.Api.Services
                     reservation.RejectionReason ?? "Monthly AI budget cap exceeded.");
             }
 
-            // 4. DATA MINIMIZATION & REDACTION: Task-specific scrubbing
+            // 5. DATA MINIMIZATION & REDACTION: Task-specific scrubbing
             request.Messages = _dataMinimizer.SanitizeMessages(request.Messages, request.TaskType);
 
-            // 5. Dispatch to OmniRoute Infrastructure Adapter
+            // 6. Dispatch to OmniRoute Infrastructure Adapter
             AIResponse response;
             try
             {
                 response = await _omniRouteClient.SendChatCompletionAsync(request, policy, ct);
             }
-            catch (Exception ex)
+            catch
             {
-                // Reconcile 0 cost on infrastructure failure to free reservation
+                // Reconcile 0 cost on infrastructure failure to release in-flight reservation
                 await _budgetService.ReconcileReservationAsync(
                     reservation.ReservationId, orgIdVal, wsIdVal, 0m, 0, 0, 0, false, false, ct);
                 throw;
@@ -104,7 +117,7 @@ namespace BusinessModelApp.Api.Services
 
             var actualCost = response.EstimatedCost ?? estimatedCost;
 
-            // 6. Reconcile Budget Reservation & Upsert Fast AIUsageDaily Ledger
+            // 7. Reconcile Budget Reservation & Upsert Fast AIUsageDaily Ledger
             await _budgetService.ReconcileReservationAsync(
                 reservation.ReservationId,
                 orgIdVal,
@@ -117,7 +130,7 @@ namespace BusinessModelApp.Api.Services
                 response.FallbackAttempts > 0,
                 ct);
 
-            // 7. Record Immutable Telemetry (AICallRecord)
+            // 8. Record Immutable Telemetry & Commercial Attribution (AICallRecord)
             try
             {
                 var telemetryRecord = new AICallRecord
@@ -136,7 +149,9 @@ namespace BusinessModelApp.Api.Services
                     CacheHit = response.CacheHit,
                     FallbackAttempts = response.FallbackAttempts,
                     RequestCorrelationId = request.RequestCorrelationId,
-                    OmniRouteRequestId = response.RequestId
+                    OmniRouteRequestId = response.RequestId,
+                    LeadId = request.LeadId,
+                    OpportunityId = request.OpportunityId
                 };
 
                 _context.AICallRecords.Add(telemetryRecord);

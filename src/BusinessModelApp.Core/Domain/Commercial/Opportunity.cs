@@ -27,6 +27,7 @@ namespace BusinessModelApp.Core.Domain.Commercial
         public string PrimaryConcern { get; set; } = string.Empty;
         public string NextStep { get; set; } = string.Empty;
         public bool IsDeleted { get; private set; }
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
         // Navigation
         public virtual Workspace Workspace { get; set; }
