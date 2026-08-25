@@ -1,0 +1,225 @@
+
+import time
+import ccxt
+import pandas as pd
+import numpy as np
+from datetime import datetime
+import logging
+from xgboost import XGBClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit
+import talib
+import joblib
+import sqlite3
+import requests
+from textblob import TextBlob
+from binance import ThreadedWebsocketManager
+import warnings
+
+# Suppress warnings
+warnings.filterwarnings("ignore")
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+class TradingBot:
+    def __init__(self, symbol='BTC/USDT'):
+        self.symbol = symbol.replace('/', '')  # Binance format
+        self.exchange = ccxt.binance({'enableRateLimit': True})
+        self.model = None
+        self.scaler = StandardScaler()
+        self.feature_columns = None
+        self.initialize_model()
+        self.db_conn = sqlite3.connect("trading_bot.db", check_same_thread=False)
+        self.db_cursor = self.db_conn.cursor()
+        self.create_db_table()
+        self.start_websocket()
+    
+    def initialize_model(self):
+        """Load or train the model"""
+        try:
+            self.model = joblib.load('trading_model.pkl')
+            self.scaler = joblib.load('scaler.pkl')
+            logging.info("Loaded existing model successfully")
+        except (FileNotFoundError, ValueError, TypeError) as e:
+            logging.warning(f"Model loading failed: {str(e)}. Training new model...")
+            self.train_model()
+            self.save_model()
+    
+    def create_db_table(self):
+        """Create trade logging table"""
+        self.db_cursor.execute('''CREATE TABLE IF NOT EXISTS trades 
+                                  (timestamp TEXT, price REAL, trade_type TEXT, confidence REAL)''')
+        self.db_conn.commit()
+    
+    def start_websocket(self):
+        """Start Binance WebSocket for real-time price updates"""
+        twm = ThreadedWebsocketManager()
+        twm.start()
+        twm.start_symbol_ticker_socket(callback=self.handle_socket_message, symbol=self.symbol.lower())
+    
+    def handle_socket_message(self, msg):
+        """Handle incoming WebSocket messages"""
+        logging.info(f"Live Price Update: {msg['p']}")
+    
+    def fetch_realtime_data(self):
+        """Fetch real-time data from Binance"""
+        try:
+            data = self.exchange.fetch_ohlcv(self.symbol, '1m', limit=100)
+            if not data:
+                logging.error("No data returned from exchange.")
+                return pd.DataFrame()
+            
+            df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('timestamp', inplace=True)
+            return df
+        except Exception as e:
+            logging.error(f"Error fetching real-time data: {str(e)}")
+            return pd.DataFrame()
+    
+    def analyze_market(self):
+        """Perform real-time analysis"""
+        try:
+            df = self.fetch_realtime_data()
+            if df.empty:
+                logging.error("No real-time data fetched.")
+                return None
+            
+            df['RSI'] = talib.RSI(df['close'], timeperiod=14)
+            df['MACD'], _, _ = talib.MACD(df['close'])
+            df['ATR'] = talib.ATR(df['high'], df['low'], df['close'], timeperiod=14)
+            df['SMA_50'] = talib.SMA(df['close'], timeperiod=50)
+            df['SMA_200'] = talib.SMA(df['close'], timeperiod=200)
+            df['VWAP'] = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
+            
+            market_trend = "Upwards" if df['SMA_50'].iloc[-1] > df['SMA_200'].iloc[-1] else "Downwards"
+            sentiment_score = self.get_sentiment_score()
+            sentiment = "Bullish" if sentiment_score > 0 else "Bearish"
+            
+            trade_action = "Hold"
+            if df['RSI'].iloc[-1] < 30:
+                trade_action = "Buy"
+            elif df['RSI'].iloc[-1] > 70:
+                trade_action = "Sell"
+            
+            atr_value = df['ATR'].iloc[-1]
+            analysis = {
+                'timestamp': datetime.now().isoformat(),
+                'current_price': df['close'].iloc[-1],
+                'market_trend': market_trend,
+                'execute_trade_price': df['close'].iloc[-1] * 0.995 if trade_action == "Buy" else df['close'].iloc[-1] * 1.005,
+                'trade_type': trade_action,
+                'target': f"{atr_value * 2.5:.2f} points",
+                'stop_loss': f"{atr_value * 1.5:.2f} points",
+                'volatility': f"{atr_value:.2f}%",
+                'sentiment': sentiment
+            }
+            
+            self.log_trade(analysis)
+            logging.info(analysis)
+            return analysis
+        except Exception as e:
+            logging.error(f"Analysis error: {str(e)}", exc_info=True)
+            return None
+    
+    def log_trade(self, analysis):
+        """Log trade into SQLite database"""
+        self.db_cursor.execute("INSERT INTO trades VALUES (?, ?, ?, ?)", 
+                               (analysis['timestamp'], analysis['current_price'], analysis['trade_type'], 0.95))
+        self.db_conn.commit()
+    
+    def get_sentiment_score(self):
+        """Fetch news sentiment score"""
+        try:
+            news = requests.get("https://newsapi.org/v2/everything?q=bitcoin&apiKey=YOUR_API_KEY").json()
+            headlines = " ".join([article["title"] for article in news["articles"]])
+            return TextBlob(headlines).sentiment.polarity
+        except:
+            return 0
+    
+if __name__ == "__main__":
+    try:
+        bot = TradingBot()
+        while True:
+            bot.analyze_market()
+            time.sleep(60)
+    except KeyboardInterrupt:
+        logging.info("Bot stopped by user")
+    except Exception as e:
+        logging.error(f"Critical failure: {str(e)}")
+
+It looks like there's an issue with the live price update messages, specifically the **negative price values (-830.70000000)**. Here’s what could be causing it and how to fix it:
+
+---
+
+## **🔍 Possible Issues & Fixes**
+### **1️⃣ Issue: WebSocket Returns Incorrect Price Data**
+- The Binance WebSocket might be returning a **non-BTC/USDT** price or an incorrect price format.
+
+✅ **Fix:** **Ensure the correct price field is used.**
+Modify the `handle_socket_message()` function to check the correct price field:
+```python
+def handle_socket_message(self, msg):
+    """Handle incoming WebSocket messages and extract correct price"""
+    try:
+        price = float(msg.get("p", 0))  # Ensure price is correctly extracted
+        if price > 0:  # Validate price is positive
+            logging.info(f"Live Price Update: {price}")
+        else:
+            logging.warning(f"Invalid price received: {price}")
+    except Exception as e:
+        logging.error(f"WebSocket Error: {str(e)}")
+```
+
+---
+
+### **2️⃣ Issue: Incorrect Symbol Formatting**
+- Binance WebSockets require symbols to be **lowercase without `/`** (e.g., `"btcusdt"`, not `"BTC/USDT"`).
+  
+✅ **Fix:** Ensure the symbol format is correct in `start_websocket()`
+```python
+def start_websocket(self):
+    """Start Binance WebSocket for real-time price updates"""
+    twm = ThreadedWebsocketManager()
+    twm.start()
+    
+    symbol_formatted = self.symbol.lower()  # Ensure symbol is lowercase
+    twm.start_symbol_ticker_socket(callback=self.handle_socket_message, symbol=symbol_formatted)
+```
+
+---
+
+### **3️⃣ Issue: Live Price Updates Overwriting the Model's Analysis**
+- The bot fetches **WebSocket price updates** continuously, which might interfere with `analyze_market()`.
+
+✅ **Fix:** Add **a price cache** to store the latest valid price.
+Modify `handle_socket_message()`:
+```python
+self.latest_price = price  # Store latest valid price
+```
+Modify `analyze_market()` to use the latest price:
+```python
+'current_price': self.latest_price if hasattr(self, 'latest_price') else df['close'].iloc[-1],
+```
+
+---
+
+### **4️⃣ Issue: Negative Prices in `fetch_realtime_data()`**
+If `fetch_realtime_data()` is returning negative prices, ensure values are correctly parsed.
+
+✅ **Fix:** Ensure correct data extraction in `fetch_realtime_data()`:
+```python
+df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+df = df[df['close'] > 0]  # Remove invalid prices
+```
+
+---
+
+## **🔧 Final Steps**
+1️⃣ **Apply these fixes to your script.**  
+2️⃣ **Restart the bot and monitor logs.**  
+3️⃣ **Ensure price updates are correct.**  
+4️⃣ **Let me know if you need additional refinements! 🚀**
+

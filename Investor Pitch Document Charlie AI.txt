@@ -1,0 +1,148 @@
+# Charlie AI Tutor – Investor Pitch Deck (India Market Focus)
+
+---
+
+## Slide 1: Cover Slide
+
+**Charlie AI Tutor**
+🚀 *"Empowering Bharat through AI-driven education."*
+Presented by Bitbloom Services Pvt. Ltd.
+
+---
+
+## Slide 2: Problem Statement
+
+* Millions of Indian students lack access to quality, affordable, personalized tutoring.
+* High student-teacher ratio in public schools.
+* Limited access to live doubt-solving, multilingual learning support, and advanced concept visualization.
+
+**Emotional Angle:**
+*"Every child deserves a great teacher – Charlie is the AI friend filling that gap."*
+
+---
+
+## Slide 3: Our Solution – Charlie AI
+
+**An AI-powered 24/7 intelligent tutor with:**
+
+* Adaptive Learning Paths 📚
+* Real-Time Chat, Voice & Facial Recognition 🎙️👁️
+* Code Explanation, Practice & Debugging 💻
+* Multi-language Learning 🌐
+* Real-time Progress Tracking 📊
+* Visual & Emotional Learning Support 🎨💖
+
+**Tagline:** *"Learn Anytime, Succeed Every Time."*
+
+---
+
+## Slide 4: How It Works (Architecture Overview)
+
+* Modular AI Stack with fallback & multi-model support (GPT-4, Deepseek, Copilot, Mistral)
+* Real-time WebSocket Communication
+* Secure Authentication + Role-Based Control
+* AI Model Load Balancing + Dynamic API Key Switching
+* Dockerized Environment for Scalable Deployments
+
+---
+
+## Slide 5: Business Model 💼
+
+| Model                | Description                          | Price (INR)        |
+| -------------------- | ------------------------------------ | ------------------ |
+| Freemium             | Limited features & access            | ₹0                 |
+| Premium Subscription | Monthly/Yearly Personalized Learning | ₹999/month         |
+| Enterprise Licensing | Schools, NGOs, Institutions          | Custom             |
+| API-as-a-Service     | EdTech & AI integrations             | ₹INR-based pricing |
+
+---
+
+## Slide 6: India EdTech Market Opportunity 🇮🇳
+
+* **INR ₹33,000+ Cr** (\$4B+) market size by 2025
+* 500M+ learners by 2030
+* Rise of NEP & digital learning adoption
+* Bharat 2.0 (tier 2/3 cities) driving affordable learning demand
+
+**Charlie’s TAM:** ₹12,000+ Cr
+
+---
+
+## Slide 7: Product Roadmap 🛤️
+
+**Q2 2025**
+
+* Beta Launch (Web & Android)
+* Multilingual Support (Hindi, Marathi, Tamil)
+* Real-time Chat + Voice + Quiz + Analytics
+
+**Q3 2025**
+
+* Emotion Recognition & Adaptive Feedback
+* Live Classes with AI Assistant Support
+* School Integrations + NGO Pilots
+
+**Q4 2025**
+
+* API Marketplace
+* Full National Rollout
+* B2B2C Partner Licensing
+
+**Q1 2026**
+
+* International Expansion (Southeast Asia)
+* K-12 Board Curriculum Sync
+
+---
+
+## Slide 8: Competitive Edge 🏆
+
+| Feature                  | Charlie AI | Byju’s | Khan Academy | Vedantu |
+| ------------------------ | ---------- | ------ | ------------ | ------- |
+| Real-time AI Tutoring    | ✅          | ❌      | ❌            | ❌       |
+| Multilingual Support     | ✅          | ❌      | ❌            | ❌       |
+| Voice & Emotion Analysis | ✅          | ❌      | ❌            | ❌       |
+| Personalization + Code   | ✅          | ❌      | ❌            | ✅       |
+| 24/7 Learning            | ✅          | ❌      | ✅            | ❌       |
+
+---
+
+## Slide 9: Founder Team 👨‍💻👩‍💼
+
+* **Mayur \[Founder]** – AI Visionary, EdTech Innovator, Business Developer
+* Team of engineers, educators, and product strategists
+
+**Emotional Statement:**
+*"We’re building Charlie not just for profit, but for every curious kid in a small town with big dreams."*
+
+---
+
+## Slide 10: Ask 📈
+
+* **Looking to raise:** ₹2 Cr seed round
+* **Use of Funds:**
+
+  * 40% Product Development
+  * 30% Marketing & User Acquisition
+  * 20% Hiring & Support
+  * 10% Legal & Infrastructure
+
+---
+
+## Slide 11: Contact 📞
+
+**Let’s empower learning together.**
+📧 [info@bitbloom.in](mailto:info@bitbloom.in)
+🌐 [www.charlieaitutor.com](http://www.charlieaitutor.com)
+
+---
+
+👁️ Vision – Mayur Prabhune's Dream for India
+"To empower 130 crore Indians—especially students—with AI and technology education, transforming India into the world’s most tech-friendly nation."
+
+A future where every child, regardless of background, understands AI—not just uses it. A future where India leads the AI revolution not just as a consumer, but as a creator.
+
+🎯 Mission – Driven by Purpose
+"To teach AI and AI-related technologies from Kindergarten (K1) to Class 10 (K10), making learning simple, affordable, and accessible for all."
+
+We are building a future where every student understands the logic of machines, the ethics of AI, and the power of digital tools—right from the early years.

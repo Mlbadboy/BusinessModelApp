@@ -1,0 +1,77 @@
+# ==============================================================================
+# OS & Editor Files
+# ==============================================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==============================================================================
+# Visual Studio & .NET Build Artifacts
+# ==============================================================================
+.vs/
+**/[Bb]in/
+**/[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.DotSettings.user
+*.patch
+*.diff
+
+# ==============================================================================
+# Node & Frontend Build Artifacts
+# ==============================================================================
+**/node_modules/
+**/build/
+**/dist/
+.npm
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================================================================
+# Temporary / Scratch Folders & Log Files
+# ==============================================================================
+temp-app/
+temp-frontend/
+temp-react/
+*.log
+**/*.log
+build_errors*
+build_log*
+api_*.log
+api_*.txt
+build_*.txt
+errors*.txt
+detailed_*.log
+detailed_*.txt
+diag_build.txt
+dotnet_info.txt
+
+# ==============================================================================
+# AI Models & Large Binary Weights (Download on demand)
+# ==============================================================================
+*.gguf
+*.bin
+*.onnx
+*.safetensors
+*.pt
+*.pth
+
+# ==============================================================================
+# Environment & Local Secrets
+# ==============================================================================
+.env
+.env*.local
+*.local.json
+appsettings.Production.json
