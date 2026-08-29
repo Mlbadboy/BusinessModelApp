@@ -173,6 +173,12 @@ builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IProposalEngineConne
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IMissionSuccessController, BusinessModelApp.Core.Services.MissionSuccessController>();
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
 
+// Gate 8: Charlie Connect, Opportunity Discovery, Commercial Transactions & Delivery Swarm
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.ICharlieConnectService, BusinessModelApp.Infrastructure.Services.CharlieConnectService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IBusinessOpportunityEngine, BusinessModelApp.Infrastructure.Services.BusinessOpportunityEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IDeliverySwarmService, BusinessModelApp.Infrastructure.Services.DeliverySwarmService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.ICommercialTransactionEngine, BusinessModelApp.Infrastructure.Services.CommercialTransactionEngine>();
+
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
     new BusinessModelApp.Core.Services.AgentOrchestratorService(
         sp.GetRequiredService<IServiceScopeFactory>(),

@@ -113,9 +113,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [{ text: 'Command Center', icon: <Dashboard />, path: '/' }],
     },
     {
-      title: 'BUSINESS',
+      title: 'BUSINESS EXECUTION',
       items: [
         { text: 'Growth Agent', icon: <SmartToy />, path: '/growth-agent' },
+        { text: 'Opportunity Discovery', icon: <Analytics />, path: '/opportunities/discovery' },
+        { text: 'Delivery Swarm', icon: <SmartToy />, path: '/delivery-swarm' },
+        { text: 'Charlie Connect', icon: <AutoAwesome />, path: '/connect' },
         { text: 'Opportunities', icon: <TrendingUp />, path: '/opportunities' },
         { text: 'Leads', icon: <PeopleAlt />, path: '/leads' },
       ],

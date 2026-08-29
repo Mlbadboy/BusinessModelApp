@@ -17,6 +17,9 @@ const Analytics = lazy(() => import('./pages/Analytics'));
 const Revenue = lazy(() => import('./pages/Revenue'));
 const Expenses = lazy(() => import('./pages/Expenses'));
 const Strategy = lazy(() => import('./pages/Strategy'));
+const CharlieConnect = lazy(() => import('./pages/CharlieConnect'));
+const OpportunityDiscovery = lazy(() => import('./pages/OpportunityDiscovery'));
+const DeliverySwarm = lazy(() => import('./pages/DeliverySwarm'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -132,6 +135,33 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <Strategy />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/connect"
+            element={
+              <ProtectedRoute>
+                <CharlieConnect />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/opportunities/discovery"
+            element={
+              <ProtectedRoute>
+                <OpportunityDiscovery />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/delivery-swarm"
+            element={
+              <ProtectedRoute>
+                <DeliverySwarm />
               </ProtectedRoute>
             }
           />
