@@ -34,10 +34,10 @@ namespace BusinessModelApp.Core.Agents
         private readonly AgentPolicyEngine _policyEngine;
         private readonly ICommercialRepository _commercialRepo;
 
-        public GovernedToolRegistry(ICommercialRepository commercialRepo)
+        public GovernedToolRegistry(ICommercialRepository? commercialRepo = null, AgentPolicyEngine? policyEngine = null)
         {
-            _commercialRepo = commercialRepo;
-            _policyEngine = new AgentPolicyEngine();
+            _commercialRepo = commercialRepo!;
+            _policyEngine = policyEngine ?? new AgentPolicyEngine();
         }
 
         public async Task<ToolExecutionResult> ExecuteToolAsync(

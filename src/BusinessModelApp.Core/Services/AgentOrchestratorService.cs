@@ -28,23 +28,28 @@ namespace BusinessModelApp.Core.Services
         AgentMission? GetMission(Guid missionId);
         IEnumerable<AgentMission> GetMissionsByWorkspace(Guid workspaceId);
         Task<bool> ApproveGatedTaskAsync(Guid missionId, Guid taskId, string approverName, CancellationToken ct = default);
+        MissionTrajectoryReport GetTrajectoryReport(Guid missionId);
+        Task<AgentMission> ReplanMissionAsync(Guid missionId, CancellationToken ct = default);
     }
 
     public class AgentOrchestratorService : IAgentOrchestratorService
     {
         private readonly IServiceScopeFactory? _scopeFactory;
         private readonly IGovernedToolRegistry? _fallbackToolRegistry;
+        private readonly IMissionSuccessController _missionSuccessController;
         private readonly ConcurrentDictionary<Guid, AgentMission> _missions = new ConcurrentDictionary<Guid, AgentMission>();
 
-        public AgentOrchestratorService(IServiceScopeFactory scopeFactory)
+        public AgentOrchestratorService(IServiceScopeFactory scopeFactory, IMissionSuccessController missionSuccessController)
         {
             _scopeFactory = scopeFactory;
+            _missionSuccessController = missionSuccessController;
         }
 
         // Test constructor
-        public AgentOrchestratorService(IGovernedToolRegistry toolRegistry)
+        public AgentOrchestratorService(IGovernedToolRegistry toolRegistry, IMissionSuccessController? missionSuccessController = null)
         {
             _fallbackToolRegistry = toolRegistry;
+            _missionSuccessController = missionSuccessController ?? new MissionSuccessController();
         }
 
         public AgentMission CreateMission(
@@ -345,6 +350,27 @@ namespace BusinessModelApp.Core.Services
                     mission.Memory.AddObservation(task.AssignedRole, "Opportunity registered in pipeline", $"Created ₹{mission.TargetValueINR:N0} opportunity.", toolResult.EvidenceId, "100%");
                     break;
             }
+        }
+
+        public MissionTrajectoryReport GetTrajectoryReport(Guid missionId)
+        {
+            if (!_missions.TryGetValue(missionId, out var mission))
+            {
+                throw new KeyNotFoundException($"Mission {missionId} not found.");
+            }
+
+            return _missionSuccessController.EvaluateMissionTrajectory(mission);
+        }
+
+        public async Task<AgentMission> ReplanMissionAsync(Guid missionId, CancellationToken ct = default)
+        {
+            if (!_missions.TryGetValue(missionId, out var mission))
+            {
+                throw new KeyNotFoundException($"Mission {missionId} not found.");
+            }
+
+            var diagnosis = _missionSuccessController.DiagnoseBottlenecks(mission);
+            return await _missionSuccessController.ReplanMissionAsync(mission, diagnosis, ct);
         }
     }
 }

@@ -23,6 +23,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import HubIcon from '@mui/icons-material/Hub';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PsychologyIcon from '@mui/icons-material/Psychology';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 
 interface MissionTaskState {
   id: string;
@@ -36,39 +37,50 @@ interface MissionTaskState {
 
 export const GrowthAgent = () => {
   // State
-  const [mode, setMode] = useState<'simulation' | 'live'>('simulation');
+  const [mode, setMode] = useState<'simulation' | 'live'>('live');
   const [isLaunchModalOpen, setIsLaunchModalOpen] = useState<boolean>(false);
   const [isGatedApprovalOpen, setIsGatedApprovalOpen] = useState<boolean>(false);
   const [autonomyLevel, setAutonomyLevel] = useState<number>(3);
   const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState<boolean>(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceData | null>(null);
 
+  // Mission Success Controller State
+  const [trajectory, setTrajectory] = useState<'on_track' | 'at_risk' | 'replanning'>('at_risk');
+  const [isReplanned, setIsReplanned] = useState<boolean>(false);
+
   // Mission Metrics
-  const companiesResearched = 184;
-  const prospectsDiscovered = 73;
-  const qualifiedCount = 21;
-  const outreachSent = 18;
-  const responsesReceived = 8;
+  const [companiesResearched, setCompaniesResearched] = useState<number>(184);
+  const [prospectsDiscovered, setProspectsDiscovered] = useState<number>(73);
+  const [qualifiedCount, setQualifiedCount] = useState<number>(21);
+  const [outreachSent, setOutreachSent] = useState<number>(18);
+  const [responsesReceived, setResponsesReceived] = useState<number>(8);
   const [opportunitiesCreated, setOpportunitiesCreated] = useState<number>(1);
   const [pipelineGeneratedINR, setPipelineGeneratedINR] = useState<number>(2500000);
 
   // Mission Wallet
   const totalBudgetINR = 5000;
-  const consumedINR = 1680;
-  const reservedINR = 500;
+  const consumedINR = isReplanned ? 2680 : 1680;
+  const reservedINR = isReplanned ? 0 : 500;
   const remainingINR = totalBudgetINR - consumedINR - reservedINR;
 
-  // DAG Tasks
-  const tasks: MissionTaskState[] = [
+  // Base DAG Tasks
+  const initialTasks: MissionTaskState[] = [
     { id: '1', title: 'Market Demand & Macro Signals', role: 'Market Intelligence Agent', status: 'completed', costINR: 0.25, evidenceId: 'EVD-MKT-991', thought: 'Discovered emerging surge in Indian BFSI AI governance transformations.' },
     { id: '2', title: 'Target Company Discovery', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMP-1842', thought: 'Identified 184 enterprise BFSI companies matching 500+ headcount ICP.' },
-    { id: '3', title: 'Decision Maker Identification', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.75, evidenceId: 'EVD-DM-401', thought: 'Identified VP of Transformation and Chief Digital Officers across 73 accounts.' },
+    { id: '3', title: 'Decision Maker Identification', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.75, evidenceId: 'EVD-DM-401', thought: 'Identified CIO and VP Transformation across 73 accounts.' },
     { id: '4', title: 'ICP Qualification & Scoring', role: 'Qualification Agent', status: 'completed', costINR: 0.40, evidenceId: 'EVD-QUAL-88', thought: 'Qualified 21 tier-1 enterprise prospects with 88.5+ fit score.' },
     { id: '5', title: 'Governed Evidence-Grounded Outreach', role: 'Outreach Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMM-710', thought: 'Dispatched personalized outreach referencing active transformation initiatives.' },
     { id: '6', title: 'Conversation Intent Analysis', role: 'Conversation Agent', status: 'completed', costINR: 0.30, evidenceId: 'EVD-INTENT-03', thought: 'Analyzed 8 prospect responses. Confirmed 3 positive commercial intents.' },
     { id: '7', title: 'Opportunity Registration', role: 'Commercial Closer', status: 'completed', costINR: 0.50, evidenceId: 'EVD-OPP-992', thought: 'Registered ₹25,00,000 Opportunity: Apex FinCloud Operations.' },
     { id: '8', title: 'Commercial Proposal & Contract Terms', role: 'Proposal Agent', status: isGatedApprovalOpen ? 'blocked' : 'completed', costINR: 1.50, evidenceId: 'EVD-PROP-01', thought: 'Commercial proposal compiled. Gated on human approval under Level 3 autonomy.' },
   ];
+
+  const adaptiveTasks: MissionTaskState[] = [
+    { id: '9', title: 'Adaptive Prospecting: L&D & VP Transformation', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-ADAPT-01', thought: 'Identified 14 high-responsiveness transformation & L&D executives.' },
+    { id: '10', title: 'Adaptive Governed Outreach: GenAI Governance', role: 'Outreach Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-ADAPT-02', thought: 'Dispatched 8 targeted messages. Generated 4 positive meetings and additional ₹25L opportunity.' },
+  ];
+
+  const tasks = isReplanned ? [...initialTasks, ...adaptiveTasks] : initialTasks;
 
   const handleStartMission = () => {
     setIsLaunchModalOpen(false);
@@ -78,21 +90,35 @@ export const GrowthAgent = () => {
   const handleApproveGatedAction = () => {
     setIsGatedApprovalOpen(false);
     setOpportunitiesCreated(2);
-    setPipelineGeneratedINR(4350000);
+    setPipelineGeneratedINR(5000000);
+  };
+
+  const handleTriggerReplan = () => {
+    setTrajectory('replanning');
+    setTimeout(() => {
+      setIsReplanned(true);
+      setTrajectory('on_track');
+      setCompaniesResearched(210);
+      setProspectsDiscovered(87);
+      setQualifiedCount(29);
+      setOutreachSent(26);
+      setResponsesReceived(12);
+      setPipelineGeneratedINR(5000000);
+    }, 600);
   };
 
   return (
     <Layout>
       <Box sx={{ p: 4, maxWidth: 1400, margin: '0 auto' }}>
         {/* HUD Top Bar */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Typography variant="h4" sx={{ fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.02em' }}>
-                AUTONOMOUS REVENUE COCKPIT
+                JARVIS REVENUE MISSION CONTROL
               </Typography>
               <Chip
-                label={mode === 'simulation' ? '◉ SIMULATION MODE (SYNTHETIC)' : '● LIVE AUTONOMY (PRODUCTION)'}
+                label={mode === 'simulation' ? '◉ SIMULATION (SANDBOX)' : '● LIVE AUTONOMY (PRODUCTION)'}
                 sx={{
                   bgcolor: mode === 'simulation' ? 'rgba(0, 229, 255, 0.1)' : 'rgba(16, 185, 129, 0.1)',
                   color: mode === 'simulation' ? '#00E5FF' : '#10B981',
@@ -100,9 +126,17 @@ export const GrowthAgent = () => {
                   fontWeight: 800,
                 }}
               />
+              <Chip
+                label={`TRAJECTORY: ${trajectory === 'on_track' ? 'ON TRACK' : (trajectory === 'replanning' ? 'RE-PLANNING' : 'AT RISK')}`}
+                sx={{
+                  bgcolor: trajectory === 'on_track' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                  color: trajectory === 'on_track' ? '#10B981' : '#F59E0B',
+                  fontWeight: 800,
+                }}
+              />
             </Box>
             <Typography variant="body2" sx={{ color: '#94A3B8' }}>
-              Mission Planner • Governed Multi-Agent DAG Execution • Autonomous Operational Loop
+              Mission Controller • Governed Multi-Agent Execution • Autonomous Closed-Loop Re-planning
             </Typography>
           </Box>
 
@@ -130,6 +164,35 @@ export const GrowthAgent = () => {
             </Button>
           </Box>
         </Box>
+
+        {/* Mission Success Controller: Bottleneck Diagnosis Banner */}
+        {trajectory === 'at_risk' && (
+          <Alert
+            severity="info"
+            icon={<AutoFixHighIcon />}
+            sx={{
+              mb: 3,
+              bgcolor: 'rgba(0, 240, 255, 0.08)',
+              border: '1px solid rgba(0, 240, 255, 0.3)',
+              color: '#F8FAFC',
+            }}
+            action={
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleTriggerReplan}
+                sx={{ bgcolor: '#00E5FF', color: '#0A0E17', fontWeight: 800, '&:hover': { bgcolor: '#38BDF8' } }}
+              >
+                Execute Autonomous Re-plan
+              </Button>
+            }
+          >
+            <strong>MISSION SUCCESS CONTROLLER DIAGNOSIS:</strong> CIO outbound response rate is lagging (2.1%). Transformation & L&D leadership demonstrate 11.8% responsiveness to GenAI governance initiatives.
+            <Typography variant="body2" sx={{ color: '#94A3B8', mt: 0.5 }}>
+              Recommended Adaptive Plan: Shift 60% of prospecting and outreach toward VP of Digital Transformation and Head of L&D personas (Estimated +₹25L Pipeline yield).
+            </Typography>
+          </Alert>
+        )}
 
         {/* Gated Approval Banner */}
         {isGatedApprovalOpen && (
@@ -170,7 +233,7 @@ export const GrowthAgent = () => {
                   ₹{(pipelineGeneratedINR / 100000).toFixed(1)}L
                 </Typography>
                 <Typography variant="caption" sx={{ color: '#10B981' }}>
-                  Target: ₹25.0L ({((pipelineGeneratedINR / 2500000) * 100).toFixed(0)}% achieved)
+                  Target: ₹50.0L ({((pipelineGeneratedINR / 5000000) * 100).toFixed(0)}% achieved)
                 </Typography>
               </CardContent>
             </Card>
@@ -198,13 +261,13 @@ export const GrowthAgent = () => {
               <CardContent sx={{ p: 2.5 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#00E5FF', mb: 1 }}>
                   <PsychologyIcon fontSize="small" />
-                  <Typography variant="body2" sx={{ fontWeight: 700 }}>CONVERSATIONS</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>CONVERSATIONS & MEETINGS</Typography>
                 </Box>
                 <Typography variant="h5" sx={{ fontWeight: 800, color: '#F8FAFC' }}>
                   {outreachSent} Sent → {responsesReceived} Replies
                 </Typography>
                 <Typography variant="caption" sx={{ color: '#10B981' }}>
-                  {opportunitiesCreated} Opportunity Active
+                  {opportunitiesCreated} Opps • 4 Meetings Booked
                 </Typography>
               </CardContent>
             </Card>
@@ -226,7 +289,7 @@ export const GrowthAgent = () => {
                   sx={{ mt: 1, mb: 0.5, bgcolor: 'rgba(255,255,255,0.1)', '& .MuiLinearProgress-bar': { bgcolor: '#00E5FF' } }}
                 />
                 <Typography variant="caption" sx={{ color: '#94A3B8' }}>
-                  Remaining: ₹{remainingINR} (Hold: ₹{reservedINR})
+                  Remaining: ₹{remainingINR} (Reserved: ₹{reservedINR})
                 </Typography>
               </CardContent>
             </Card>
@@ -235,7 +298,7 @@ export const GrowthAgent = () => {
 
         {/* Live Multi-Agent DAG Graph */}
         <Typography variant="h6" sx={{ fontWeight: 700, color: '#F8FAFC', mb: 2 }}>
-          Mission #001: Execution DAG & Thought Stream
+          Mission #001: Execution DAG & Thought Stream {isReplanned && '• [ADAPTIVE RE-PLAN APPLIED]'}
         </Typography>
 
         <Grid container spacing={2}>
@@ -244,7 +307,7 @@ export const GrowthAgent = () => {
               <Card
                 sx={{
                   bgcolor: '#0F172A',
-                  border: `1px solid ${t.status === 'blocked' ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                  border: `1px solid ${t.status === 'blocked' ? 'rgba(245, 158, 11, 0.4)' : (t.id.startsWith('9') || t.id.startsWith('10') ? 'rgba(0, 240, 255, 0.4)' : 'rgba(255, 255, 255, 0.08)')}`,
                   borderRadius: 2,
                   p: 2,
                 }}
@@ -335,7 +398,7 @@ export const GrowthAgent = () => {
             <TextField
               label="Mission Objective"
               fullWidth
-              defaultValue="Generate ₹25L qualified pipeline in BFSI"
+              defaultValue="Generate ₹50L qualified pipeline in BFSI"
               margin="normal"
               InputLabelProps={{ style: { color: '#94A3B8' } }}
               sx={{ input: { color: '#F8FAFC' } }}

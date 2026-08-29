@@ -174,14 +174,15 @@ export const Dashboard: React.FC = () => {
             </Stack>
           </Box>
 
-          {/* JARVIS Executive Brief Panel */}
+          {/* JARVIS REVENUE MISSION CONTROL HERO */}
           <Card
             sx={{
               mb: 4,
               backgroundColor: '#0D1118',
-              border: '1px solid rgba(0, 240, 255, 0.25)',
+              border: '1px solid rgba(0, 240, 255, 0.3)',
               position: 'relative',
               overflow: 'hidden',
+              borderRadius: 2,
               '&::before': {
                 content: '""',
                 position: 'absolute',
@@ -190,59 +191,70 @@ export const Dashboard: React.FC = () => {
                 bottom: 0,
                 width: '4px',
                 backgroundColor: '#00F0FF',
-                boxShadow: '0 0 12px #00F0FF',
+                boxShadow: '0 0 16px #00F0FF',
               },
             }}
           >
-            <CardContent sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                  <AutoAwesome sx={{ color: '#00F0FF', fontSize: 20 }} />
-                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#F8FAFC' }}>
-                    EXECUTIVE BRIEF
+            <CardContent sx={{ p: 3.5 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2.5, flexWrap: 'wrap', gap: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <AutoAwesome sx={{ color: '#00F0FF', fontSize: 24 }} />
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: '#F8FAFC', letterSpacing: '-0.01em' }}>
+                    JARVIS REVENUE OPERATING SYSTEM
                   </Typography>
+                  <StatusBadge type="fact" customLabel="● LIVE AUTONOMY • LEVEL 3" />
                 </Box>
-                <StatusBadge type="interpretation" customLabel="AI Synthesized Brief" />
-              </Box>
-
-              <Stack spacing={2}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                  <StatusBadge type="fact" sx={{ mt: 0.2 }} />
-                  <Typography variant="body1" sx={{ color: '#E2E8F0', lineHeight: 1.5 }}>
-                    Revenue momentum accelerated <strong>+8.4% this week</strong>. Active pipeline stands at <strong>₹{(pipelineValue / 100000).toFixed(1)}L</strong> with weighted potential of <strong>₹{(weightedValue / 100000).toFixed(1)}L</strong>.
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                  <StatusBadge type="interpretation" sx={{ mt: 0.2 }} />
-                  <Typography variant="body1" sx={{ color: '#E2E8F0', lineHeight: 1.5 }}>
-                    Three enterprise opportunities account for <strong>62% of your weighted forecast</strong>. One deal (Acme Corp) has been idle for 17 days without commercial activity.
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-                  <StatusBadge type="recommendation" sx={{ mt: 0.2 }} />
-                  <Typography variant="body1" sx={{ color: '#E2E8F0', lineHeight: 1.5 }}>
-                    <strong>Recommended Next Step:</strong> Dispatch technical proposal to Acme Corp and initiate Growth Agent follow-up mission for 12 pending leads.
-                  </Typography>
-                </Box>
-              </Stack>
-
-              <Box sx={{ mt: 2.5, pt: 2, borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', gap: 2 }}>
                 <Button
                   size="small"
                   variant="outlined"
-                  onClick={() => handleOpenEvidence('pipeline')}
+                  onClick={() => navigate('/growth-agent')}
+                  sx={{ color: '#00F0FF', borderColor: 'rgba(0, 240, 255, 0.4)', fontWeight: 700 }}
                 >
-                  Review Evidence (EVD-PIPE-01)
+                  Mission Cockpit →
                 </Button>
-                <Button
-                  size="small"
-                  variant="contained"
-                  onClick={() => navigate('/opportunities')}
-                >
-                  Open Opportunities
-                </Button>
+              </Box>
+
+              {/* Revenue Mission High-Level Numbers */}
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>ACTIVE MISSIONS</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#F8FAFC' }}>7</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>PIPELINE GENERATED</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#00F0FF' }}>₹1.84 Cr</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>AI ATTRIBUTED REVENUE</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#10B981' }}>₹42.7L</Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                  <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: 1.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#94A3B8', fontWeight: 600 }}>VERIFIED AI ROI</Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800, color: '#F59E0B' }}>12.7×</Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {/* Active Mission Live Status */}
+              <Box sx={{ p: 2, bgcolor: 'rgba(0, 240, 255, 0.05)', borderRadius: 1.5, border: '1px solid rgba(0, 240, 255, 0.15)' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: '#F8FAFC' }}>
+                    Active Mission: BFSI Enterprise AI Growth (Target: ₹50L)
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: '#10B981', fontWeight: 800 }}>
+                    ON TRACK (63% Complete • ₹31.4L Generated)
+                  </Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block' }}>
+                  JARVIS Status: Research ✓ | Prospecting ✓ | Outreach ✓ | Conversations ● | Meetings Booked: 4
+                </Typography>
               </Box>
             </CardContent>
           </Card>

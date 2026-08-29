@@ -73,15 +73,44 @@ namespace BusinessModelApp.Api.Controllers
             return Ok(mission);
         }
 
-        [HttpPost("{id}/approve-task/{taskId}")]
-        public async Task<ActionResult> ApproveGatedTask(Guid id, Guid taskId)
+        [HttpGet("{id}/trajectory")]
+        public ActionResult<MissionTrajectoryReport> GetMissionTrajectory(Guid id)
         {
-            var approverName = User.Identity?.Name ?? "Executive Leader";
-            var success = await _orchestrator.ApproveGatedTaskAsync(id, taskId, approverName);
-            if (!success) return BadRequest(new { message = "Unable to approve task. Task may not exist or is not blocked on approval." });
+            try
+            {
+                var report = _orchestrator.GetTrajectoryReport(id);
+                return Ok(report);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpPost("{id}/replan")]
+        public async Task<ActionResult<AgentMission>> ReplanMission(Guid id)
+        {
+            try
+            {
+                var mission = await _orchestrator.ReplanMissionAsync(id);
+                return Ok(mission);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpPost("{id}/approve-task/{taskId}")]
+        public async Task<ActionResult<AgentMission>> ApproveTask(Guid id, Guid taskId)
+        {
+            var approver = User.Identity?.Name ?? "Executive Approver";
+            var success = await _orchestrator.ApproveGatedTaskAsync(id, taskId, approver);
+            if (!success) return BadRequest(new { message = "Failed to approve task or task is not blocked on approval." });
 
             var mission = _orchestrator.GetMission(id);
             return Ok(mission);
         }
     }
 }
+

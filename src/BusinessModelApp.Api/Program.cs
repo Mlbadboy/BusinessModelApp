@@ -163,10 +163,20 @@ builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IApprovalService,
 builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
 builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, BusinessModelApp.Core.Services.AIROIService>();
 
-// Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
+// Gate 6 & Gate 7: Autonomous Agent Orchestrator, Governed Connectors & Mission Success Controller
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IWebSearchConnector, BusinessModelApp.Infrastructure.Connectors.GovernedWebSearchConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.ICompanyIntelligenceConnector, BusinessModelApp.Infrastructure.Connectors.GovernedCompanyIntelligenceConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IProspectDiscoveryConnector, BusinessModelApp.Infrastructure.Connectors.GovernedProspectDiscoveryConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IEmailCommunicationConnector, BusinessModelApp.Infrastructure.Connectors.GovernedEmailCommunicationConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.ICalendarSchedulingConnector, BusinessModelApp.Infrastructure.Connectors.GovernedCalendarSchedulingConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IProposalEngineConnector, BusinessModelApp.Infrastructure.Connectors.GovernedProposalEngineConnector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IMissionSuccessController, BusinessModelApp.Core.Services.MissionSuccessController>();
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
+
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
-    new BusinessModelApp.Core.Services.AgentOrchestratorService(sp.GetRequiredService<IServiceScopeFactory>()));
+    new BusinessModelApp.Core.Services.AgentOrchestratorService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<BusinessModelApp.Core.Services.IMissionSuccessController>()));
 
 // 9. Register Production Health Checks
 builder.Services.AddScoped<AppDbContextHealthCheck>();
