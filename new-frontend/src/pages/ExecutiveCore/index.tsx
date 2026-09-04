@@ -30,6 +30,7 @@ import GavelIcon from '@mui/icons-material/Gavel';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import GroupsIcon from '@mui/icons-material/Groups';
 import { DigitalTwinExplorer } from '../../components/DigitalTwin/DigitalTwinExplorer';
+import { LearningCenter } from '../../components/Learning/LearningCenter';
 
 interface StrategicAssumption {
   key: string;
@@ -340,6 +341,7 @@ export const ExecutiveCore: React.FC = () => {
           <Tab icon={<GavelIcon fontSize="small" />} iconPosition="start" label="4. Decision Trace" />
           <Tab icon={<AccountTreeIcon fontSize="small" />} iconPosition="start" label="5. Mission Graph" />
           <Tab icon={<GroupsIcon fontSize="small" />} iconPosition="start" label="6. Agent Hive" />
+          <Tab icon={<PsychologyIcon fontSize="small" />} iconPosition="start" label="7. Institutional Learning" />
         </Tabs>
       </Paper>
 
@@ -590,6 +592,13 @@ export const ExecutiveCore: React.FC = () => {
             </Grid>
           ))}
         </Grid>
+      )}
+
+      {/* SCREEN 7: INSTITUTIONAL LEARNING & CAUSAL INTELLIGENCE */}
+      {activeTab === 6 && (
+        <Box sx={{ width: '100%' }}>
+          <LearningCenter />
+        </Box>
       )}
 
       {/* Why Charlie Audit Slide-Over Drawer */}

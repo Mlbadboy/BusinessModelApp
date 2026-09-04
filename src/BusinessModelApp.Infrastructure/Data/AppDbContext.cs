@@ -39,6 +39,13 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.Domain.Missions.DurableMissionCheckpoint> MissionCheckpoints { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.DigitalTwin.DigitalTwinSnapshot> DigitalTwinSnapshots { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.DigitalTwin.DigitalTwinConflictRecord> DigitalTwinConflicts { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningRecord> LearningRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.OutcomeRecord> OutcomeRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.FailureRecord> FailureRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.CorrectionRecord> CorrectionRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningEpisode> LearningEpisodes { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningContradictionRecord> LearningContradictions { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningExperiment> LearningExperiments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -405,6 +412,73 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.ResolutionNote).HasMaxLength(500);
                 entity.HasIndex(e => new { e.WorkspaceId, e.Status });
                 entity.HasIndex(e => new { e.WorkspaceId, e.FieldPath });
+            });
+
+            // LearningRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Statement).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.Domain).HasMaxLength(150);
+                entity.Property(e => e.IntegrityHash).HasMaxLength(64);
+                entity.Ignore(e => e.EvidenceRecordIds);
+                entity.Ignore(e => e.GroundingEvidenceHashes);
+                entity.HasIndex(e => new { e.WorkspaceId, e.State });
+                entity.HasIndex(e => new { e.WorkspaceId, e.Tier });
+            });
+
+            // OutcomeRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.OutcomeRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ExpectedRevenueINR).HasPrecision(18, 2);
+                entity.Property(e => e.ActualRevenueINR).HasPrecision(18, 2);
+                entity.Property(e => e.ExpectedCostINR).HasPrecision(18, 2);
+                entity.Property(e => e.ActualCostINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.MissionId });
+            });
+
+            // FailureRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.FailureRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Diagnosis).IsRequired().HasMaxLength(1000);
+                entity.HasIndex(e => new { e.WorkspaceId, e.RootCause });
+            });
+
+            // CorrectionRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.CorrectionRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ActionTaken).IsRequired().HasMaxLength(1000);
+                entity.HasIndex(e => e.FailureRecordId);
+            });
+
+            // LearningEpisode
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningEpisode>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Narrative).HasMaxLength(1000);
+                entity.HasIndex(e => new { e.WorkspaceId, e.MissionId });
+            });
+
+            // LearningContradictionRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningContradictionRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Details).HasMaxLength(1000);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Status });
+            });
+
+            // LearningExperiment
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningExperiment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Hypothesis).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.TargetMetric).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.BudgetCapINR).HasPrecision(18, 2);
+                entity.Property(e => e.SpentINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Status });
             });
         }
     }

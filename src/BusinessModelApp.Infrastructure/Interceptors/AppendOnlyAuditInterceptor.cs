@@ -3,6 +3,7 @@ using BusinessModelApp.Core.Domain.Commercial;
 using BusinessModelApp.Core.Domain.Decisions;
 using BusinessModelApp.Core.Domain.Missions;
 using BusinessModelApp.Core.Domain.Reality;
+using BusinessModelApp.Core.Domain.Learning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -39,7 +40,11 @@ namespace BusinessModelApp.Infrastructure.Interceptors
                     entry.Entity is BusinessModelApp.Core.Domain.Reality.EvidenceRecord ||
                     entry.Entity is BusinessModelApp.Core.Domain.Commercial.EvidenceRecord ||
                     entry.Entity is DurableMissionCheckpoint ||
-                    entry.Entity is BusinessModelApp.Core.Domain.DigitalTwin.DigitalTwinSnapshot)
+                    entry.Entity is BusinessModelApp.Core.Domain.DigitalTwin.DigitalTwinSnapshot ||
+                    entry.Entity is OutcomeRecord ||
+                    entry.Entity is FailureRecord ||
+                    entry.Entity is CorrectionRecord ||
+                    entry.Entity is LearningEpisode)
                 {
                     if (entry.State == EntityState.Modified)
                     {
