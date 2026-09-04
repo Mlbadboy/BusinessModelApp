@@ -13,6 +13,7 @@ namespace BusinessModelApp.Core.AI
         VoiceQualification = 9,
         Embedding = 10,
         Transcription = 11,
-        TextToSpeech = 12
+        TextToSpeech = 12,
+        StrategicPlanning = 13
     }
 }

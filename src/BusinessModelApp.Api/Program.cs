@@ -205,6 +205,13 @@ builder.Services.AddScoped<BusinessModelApp.Core.Agents.AgentHeartbeatService>()
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.AgentRecoveryService>();
 builder.Services.AddScoped<BusinessModelApp.Core.Services.ICharlieExecutiveService, BusinessModelApp.Infrastructure.Services.CharlieExecutiveService>();
 
+// Phase 1.5 v1.3.1 Production Hardening Services (Batch 1: H0 - H3)
+builder.Services.AddSingleton<BusinessModelApp.Core.Domain.WorldModel.IPhase1BaselineGuard, BusinessModelApp.Core.Domain.WorldModel.Phase1BaselineGuard>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IModelRegistry, BusinessModelApp.Infrastructure.AI.ModelRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IModelRouter, BusinessModelApp.Infrastructure.AI.ModelRouter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Domain.Reality.IEvidenceGraph, BusinessModelApp.Infrastructure.Reality.EvidenceGraphService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Domain.Reality.IRealityDecayEngine, BusinessModelApp.Infrastructure.Reality.RealityDecayEngine>();
+
 // Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
