@@ -75,3 +75,7 @@ dotnet_info.txt
 .env*.local
 *.local.json
 appsettings.Production.json
+*.db
+*.db-shm
+*.db-wal
+export/

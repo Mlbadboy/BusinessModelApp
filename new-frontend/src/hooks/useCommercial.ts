@@ -75,31 +75,80 @@ export interface UpdateStageInput {
   reasonOrNote?: string;
 }
 
+export interface EvidenceRecord {
+  evidenceId: string;
+  evidenceType: string;
+  displayName: string;
+  formattedValue: string;
+  numericValue: number;
+  formula: string;
+  confidenceScore: number;
+  impactLevel: string;
+}
+
+export interface BusinessHealthData {
+  overallHealthScore: number;
+  confidenceScore: number;
+  confidenceLevel: string;
+  totalPipelineValue: number;
+  weightedForecastValue: number;
+  closedWonRevenue: number;
+  quarterlyTarget: number;
+  pipelineCoverageRatio: number;
+  winRate: number;
+  leadQualificationRate: number;
+  avgVelocityDays: number;
+  stalledRiskIndex: number;
+  subScores: {
+    pipelineScore: number;
+    conversionScore: number;
+    velocityScore: number;
+    riskScore: number;
+  };
+  evidenceRecords: EvidenceRecord[];
+}
+
 export interface CommercialDashboardData {
   pipelineValue: number;
   weightedForecast: number;
+  closedWonRevenue: number;
   totalLeads: number;
   totalOpportunities: number;
   overallHealthScore: number;
+  healthResult?: BusinessHealthData;
 }
 
 export const useCommercial = () => {
   const queryClient = useQueryClient();
 
-  // Query: Fetch Dashboard Summary Data
+  // Query: Fetch Real Dashboard Business Health Data
   const dashboardQuery = useQuery<CommercialDashboardData>({
     queryKey: ['commercial-dashboard'],
     queryFn: async () => {
       try {
-        const { data } = await api.get('/commercial/dashboard');
-        return data;
+        const { data: health } = await api.get<BusinessHealthData>('/analytics/business-health');
+        const [{ data: leads }, { data: opps }] = await Promise.all([
+          api.get<LeadDto[]>(endpoints.leads.list).catch(() => ({ data: [] as LeadDto[] })),
+          api.get<OpportunityDto[]>(endpoints.opportunities.list).catch(() => ({ data: [] as OpportunityDto[] })),
+        ]);
+
+        return {
+          pipelineValue: health?.totalPipelineValue ?? 0,
+          weightedForecast: health?.weightedForecastValue ?? 0,
+          closedWonRevenue: health?.closedWonRevenue ?? 0,
+          totalLeads: leads?.length ?? 0,
+          totalOpportunities: opps?.length ?? 0,
+          overallHealthScore: Math.round(health?.overallHealthScore ?? 0),
+          healthResult: health,
+        };
       } catch {
         return {
-          pipelineValue: 4860000,
-          weightedForecast: 2740000,
-          totalLeads: 42,
-          totalOpportunities: 14,
-          overallHealthScore: 78.0,
+          pipelineValue: 0,
+          weightedForecast: 0,
+          closedWonRevenue: 0,
+          totalLeads: 0,
+          totalOpportunities: 0,
+          overallHealthScore: 0,
         };
       }
     },
@@ -119,7 +168,26 @@ export const useCommercial = () => {
     queryKey: ['opportunities'],
     queryFn: async () => {
       const { data } = await api.get(endpoints.opportunities.list);
-      return data;
+      const stageMap: Record<string, number> = {
+        Discovery: 0,
+        Proposal: 1,
+        Negotiation: 2,
+        ClosedWon: 3,
+        ClosedLost: 4,
+        '0': 0,
+        '1': 1,
+        '2': 2,
+        '3': 3,
+        '4': 4,
+      };
+      return (data || []).map((opp: any) => ({
+        ...opp,
+        stage: typeof opp.stage === 'string' && stageMap[opp.stage] !== undefined
+          ? stageMap[opp.stage]
+          : typeof opp.stage === 'number'
+          ? opp.stage
+          : 0,
+      }));
     },
   });
 

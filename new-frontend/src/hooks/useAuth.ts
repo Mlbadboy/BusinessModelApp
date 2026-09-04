@@ -82,8 +82,10 @@ export const useAuth = () => {
     },
   });
 
+  const hasToken = Boolean(localStorage.getItem(config.auth.tokenKey));
+
   // Check auth status
-  const { data: user, isLoading: isCheckingAuth } = useQuery({
+  const { data: user, isFetching } = useQuery({
     queryKey: ['auth-status'],
     queryFn: async () => {
       const token = localStorage.getItem(config.auth.tokenKey);
@@ -99,13 +101,13 @@ export const useAuth = () => {
       }
     },
     retry: false,
-    enabled: Boolean(localStorage.getItem(config.auth.tokenKey)),
+    enabled: hasToken,
   });
 
   return {
     user,
     isAuthenticated: !!user,
-    isCheckingAuth,
+    isCheckingAuth: hasToken && isFetching && !user,
     login,
     register,
     logout,

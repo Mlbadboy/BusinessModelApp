@@ -176,18 +176,78 @@ namespace BusinessModelApp.Api.Controllers
                 return NotFound(new { message = "Lead not found in authorized workspace." });
             }
 
-            var prompt = $"Evaluate inbound lead readiness for contact '{lead.ContactName}' from company '{lead.CompanyName}' (Source: {lead.Source}, Notes: '{lead.Notes}'). Provide an estimated deal intent score (0-100) and a 1-sentence qualification recommendation.";
+            var prompt = $"Evaluate inbound commercial lead readiness for contact '{lead.ContactName}' from company '{lead.CompanyName}' (Source: {lead.Source}, Notes: '{lead.Notes}').\n" +
+                         "Return ONLY a valid JSON object matching this schema:\n" +
+                         "{\n" +
+                         "  \"score\": <number between 0 and 100>,\n" +
+                         "  \"tier\": \"<Tier-1 Enterprise | Tier-2 Growth | Emerging | Disqualified>\",\n" +
+                         "  \"recommendation\": \"<concise 1-sentence qualification recommendation>\"\n" +
+                         "}";
+
             var aiRequest = new BusinessModelApp.Core.AI.AIRequest
             {
                 TaskType = BusinessModelApp.Core.AI.AITaskType.LeadQualification,
                 WorkspaceId = targetWorkspaceId,
+                LeadId = lead.Id,
                 Messages = { BusinessModelApp.Core.AI.AIMessage.User(prompt) }
             };
 
             var aiResponse = await aiGateway.ExecuteAsync(aiRequest);
 
-            // Update lead quality score
-            lead.QualityScore = 85.0; // AI calibrated
+            // Structured extraction & validation
+            double? parsedScore = null;
+            string summary = aiResponse.Content ?? string.Empty;
+            string tier = "Tier-1 Enterprise";
+
+            try
+            {
+                var raw = aiResponse.Content?.Trim() ?? string.Empty;
+                if (raw.StartsWith("```"))
+                {
+                    var firstLineEnd = raw.IndexOf('\n');
+                    var lastTick = raw.LastIndexOf("```");
+                    if (firstLineEnd >= 0 && lastTick > firstLineEnd)
+                    {
+                        raw = raw.Substring(firstLineEnd + 1, lastTick - firstLineEnd - 1).Trim();
+                    }
+                }
+
+                using var jsonDoc = System.Text.Json.JsonDocument.Parse(raw);
+                if (jsonDoc.RootElement.TryGetProperty("score", out var scoreProp) && scoreProp.TryGetDouble(out var sVal))
+                {
+                    parsedScore = sVal;
+                }
+                if (jsonDoc.RootElement.TryGetProperty("tier", out var tierProp))
+                {
+                    tier = tierProp.GetString() ?? tier;
+                }
+                if (jsonDoc.RootElement.TryGetProperty("recommendation", out var recProp))
+                {
+                    summary = recProp.GetString() ?? summary;
+                }
+            }
+            catch
+            {
+                // Fallback regex extraction: look for score pattern e.g. "score": 87 or 87/100
+                var match = System.Text.RegularExpressions.Regex.Match(aiResponse.Content ?? string.Empty, @"(?:score|rating)[\""\s:]+(\d{1,3}(?:\.\d+)?)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success && double.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var regexScore))
+                {
+                    parsedScore = regexScore;
+                }
+            }
+
+            if (!parsedScore.HasValue || double.IsNaN(parsedScore.Value) || parsedScore.Value < 0 || parsedScore.Value > 100)
+            {
+                return UnprocessableEntity(new ProblemDetails
+                {
+                    Title = "Invalid AI Qualification Response",
+                    Detail = "AI gateway response could not be parsed into a verifiable numeric score between 0 and 100.",
+                    Status = StatusCodes.Status422UnprocessableEntity
+                });
+            }
+
+            // Persist validated real score to database
+            lead.QualityScore = Math.Round(Math.Clamp(parsedScore.Value, 0.0, 100.0), 1);
             await _repository.UpdateLeadAsync(lead);
 
             return Ok(new
@@ -196,7 +256,8 @@ namespace BusinessModelApp.Api.Controllers
                 contactName = lead.ContactName,
                 companyName = lead.CompanyName,
                 qualityScore = lead.QualityScore,
-                qualificationSummary = aiResponse.Content,
+                tier = tier,
+                qualificationSummary = summary,
                 modelUsed = aiResponse.ModelUsed,
                 providerUsed = aiResponse.ProviderUsed
             });

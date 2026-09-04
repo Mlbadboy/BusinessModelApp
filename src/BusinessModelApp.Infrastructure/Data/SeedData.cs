@@ -100,61 +100,9 @@ namespace BusinessModelApp.Infrastructure.Data
                 }
             }
 
-            // 4. Seed Initial Leads & Opportunities (Vertical Slice demonstration)
-            if (!context.Leads.Any())
-            {
-                var lead1 = new Lead
-                {
-                    WorkspaceId = workspace.Id,
-                    ContactName = "Rajesh Gupta",
-                    CompanyName = "Apex Retail Dynamics",
-                    Email = "rajesh@apexretail.in",
-                    Phone = "+91 98230 11223",
-                    Source = LeadSource.VoiceAI,
-                    Status = LeadStatus.Qualified,
-                    QualityScore = 92.5,
-                    Notes = "Voice AI qualified inbound inquiry for 500 branch POS automation."
-                };
-                context.Leads.Add(lead1);
-                await context.SaveChangesAsync();
-
-                var opp1 = new Opportunity
-                {
-                    WorkspaceId = workspace.Id,
-                    LeadId = lead1.Id,
-                    Title = "Apex Retail - Enterprise AI Operations Rollout",
-                    EstimatedValue = 1850000m, // ₹18.5 Lakhs
-                    Currency = "INR",
-                    Stage = OpportunityStage.Proposal,
-                    Probability = 0.5,
-                    ExpectedCloseDate = DateTime.UtcNow.AddDays(30),
-                    PrimaryConcern = "Deployment SLA and local compliance.",
-                    NextStep = "Deliver tailored commercial proposal and security architecture brief."
-                };
-                context.Opportunities.Add(opp1);
-                await context.SaveChangesAsync();
-
-                // Seed Activities
-                context.Activities.Add(new Activity
-                {
-                    OpportunityId = opp1.Id,
-                    Type = ActivityType.InteractionLogged,
-                    Title = "Inbound Voice Call Completed",
-                    Description = "Voice agent qualified lead with 92.5% confidence score.",
-                    PerformedByName = "Growth Voice Agent"
-                });
-                context.Activities.Add(new Activity
-                {
-                    OpportunityId = opp1.Id,
-                    Type = ActivityType.StageChanged,
-                    Title = "Stage advanced to Proposal",
-                    Description = "Lead successfully converted to Opportunity.",
-                    PerformedByName = "System Orchestrator"
-                });
-                await context.SaveChangesAsync();
-                logger.LogInformation("Vertical slice sample leads & opportunities seeded.");
-            }
-
+            // 4. Commercial truth: No synthetic leads or opportunities are seeded.
+            // All leads and opportunities must originate from real human creation or governed agent missions.
+            logger.LogInformation("Database identity and workspace initialized (Commercial zero-state enforced).");
             logger.LogInformation("Database seeding complete.");
         }
     }

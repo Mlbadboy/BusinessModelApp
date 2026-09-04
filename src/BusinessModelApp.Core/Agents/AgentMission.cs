@@ -6,7 +6,8 @@ namespace BusinessModelApp.Core.Agents
     public enum MissionMode
     {
         Simulation = 0,
-        LiveProduction = 1
+        LiveProduction = 1,
+        HybridPilot = 2
     }
 
     public enum MissionStatus

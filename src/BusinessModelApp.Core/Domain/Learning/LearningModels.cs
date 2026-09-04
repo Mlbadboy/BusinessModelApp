@@ -130,6 +130,9 @@ namespace BusinessModelApp.Core.Domain.Learning
         public bool IsProcedureCandidate { get; set; } = false;
         public string? CrystallizedProcedureJson { get; set; }
 
+        public ContaminationScoreVector ContaminationScore { get; set; } = new();
+        public List<AlternativeHypothesis> AlternativeHypotheses { get; set; } = new();
+
         public string ComputeIntegrityHash()
         {
             var raw = $"{Id:N}|{WorkspaceId:N}|{Statement}|{Tier}|{State}|{Confidence:F4}|{CausalConfidence:F4}|{ValidationCount}|{CreatedAt:O}";
@@ -307,7 +310,144 @@ namespace BusinessModelApp.Core.Domain.Learning
                 {
                     throw new InvalidOperationException($"Promotion to Organizational tier requires Causal Confidence >= 0.50. Current: {record.CausalConfidence:F2}.");
                 }
+
+                if (record.ContaminationScore != null && record.ContaminationScore.ContaminationRisk > 0.30 && targetTier >= LearningTier.L4_Strategic)
+                {
+                    throw new InvalidOperationException($"Learning with elevated Contamination Risk ({record.ContaminationScore.ContaminationRisk:F2} > 0.30) cannot be promoted to Strategic or Institutional tier.");
+                }
             }
         }
     }
+
+    /// <summary>
+    /// Competing alternative hypothesis for Why-NOT reasoning and non-premature causal conclusions.
+    /// </summary>
+    public class AlternativeHypothesis : Entity
+    {
+        public Guid LearningRecordId { get; set; }
+        public string HypothesisCode { get; set; } = "H1"; // H1=Primary, H2, H3
+        public string Statement { get; set; } = string.Empty;
+        public double PriorConfidence { get; set; } = 0.50;
+        public double CurrentConfidence { get; set; } = 0.50;
+        public List<Guid> SupportingEvidenceIds { get; set; } = new();
+        public List<Guid> RefutingEvidenceIds { get; set; } = new();
+        public string Status { get; set; } = "Alternative"; // Primary, Alternative, Refuted, Unresolved
+        public string RemainingUncertainty { get; set; } = "Medium"; // Low, Medium, High
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Deterministic 8-factor contamination risk metrology vector.
+    /// ContaminationRisk measures risk of polluted, duplicated, or mis-scoped learning.
+    /// </summary>
+    public class ContaminationScoreVector
+    {
+        public double EvidenceStrength { get; set; } = 0.50;
+        public double IndependenceFactor { get; set; } = 0.50;
+        public double CausalConfidence { get; set; } = 0.40;
+        public double Freshness { get; set; } = 1.0;
+        public double ContradictionRisk { get; set; } = 0.0;
+        public double ScopeConfidence { get; set; } = 0.80;
+        public double SourceReliability { get; set; } = 0.90;
+        public double ContaminationRisk { get; set; } = 0.20;
+        public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
+        public string CalculationVersion { get; set; } = "1.0-Deterministic";
+
+        public double CalculateContaminationRisk()
+        {
+            double baseIntegrity = EvidenceStrength * IndependenceFactor * CausalConfidence * Freshness * SourceReliability * ScopeConfidence;
+            double risk = (1.0 - baseIntegrity) + (ContradictionRisk * 0.5);
+            ContaminationRisk = Math.Clamp(Math.Round(risk, 4), 0.0, 1.0);
+            return ContaminationRisk;
+        }
+    }
+
+    /// <summary>
+    /// Counterfactual what-if simulation entity.
+    /// INVARIANT: TruthClassification is HYPOTHESIS / SIMULATION. NEVER FACT!
+    /// </summary>
+    public class CounterfactualSimulation : Entity
+    {
+        public Guid WorkspaceId { get; set; }
+        public Guid SourceMissionId { get; set; }
+        public Guid? SourceOutcomeId { get; set; }
+        public Guid? DigitalTwinSnapshotId { get; set; }
+        public string BaselineStateJson { get; set; } = "{}";
+        public string InterventionJson { get; set; } = "{}";
+        public string PredictedOutcomeJson { get; set; } = "{}";
+        public string PredictionBoundsJson { get; set; } = "{}";
+        public string AssumptionsJson { get; set; } = "[]";
+        public TruthClassification Classification { get; set; } = TruthClassification.Hypothesis;
+        public bool IsSimulation { get; set; } = true;
+        public double PredictionConfidence { get; set; } = 0.50;
+        public double CausalConfidence { get; set; } = 0.40;
+        public string ModelId { get; set; } = "DeterministicSimulator";
+        public string ModelVersion { get; set; } = "1.0";
+        public string SimulationVersion { get; set; } = "1.0";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Auditable node in a decision's influence graph.
+    /// Tracks Truth, Evidence, Learning, Hypothesis, Simulation, Policy, and Twin Snapshots.
+    /// </summary>
+    public class LearningInfluenceRecord : Entity
+    {
+        public Guid WorkspaceId { get; set; }
+        public Guid DecisionId { get; set; }
+        public string SourceType { get; set; } = "Learning"; // Truth, Evidence, Learning, Hypothesis, Simulation, Policy, DigitalTwin
+        public Guid? SourceId { get; set; }
+        public string SourceName { get; set; } = string.Empty;
+        public double ContributionWeight { get; set; } = 0.50;
+        public double Confidence { get; set; } = 0.50;
+        public bool IsAdvisory { get; set; } = true;
+        public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Immutable audit notice recording the reversal and error propagation of a disproven learning.
+    /// </summary>
+    public class LearningReversalNotice : Entity
+    {
+        public Guid WorkspaceId { get; set; }
+        public Guid LearningRecordId { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public string DisconfirmingEvidenceJson { get; set; } = "[]";
+        public string AffectedDecisionIdsJson { get; set; } = "[]";
+        public string AffectedMissionIdsJson { get; set; } = "[]";
+        public string AffectedForecastsJson { get; set; } = "[]";
+        public string EstimatedImpactSummary { get; set; } = string.Empty;
+        public decimal EstimatedRevenueDeviationINR { get; set; } = 0m;
+        public Guid? ReplacementLearningId { get; set; }
+        public LearningState PreviousState { get; set; }
+        public LearningState NewState { get; set; } = LearningState.Superseded;
+        public DateTime ReversedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Governed Uncertainty Budget tracking system-wide epistemic debt and certainty scores.
+    /// </summary>
+    public class UncertaintyBudget : Entity
+    {
+        public Guid WorkspaceId { get; set; }
+        public double RevenueCertainty { get; set; } = 0.90;
+        public double MarketCertainty { get; set; } = 0.60;
+        public double CustomerBehaviorCertainty { get; set; } = 0.65;
+        public double CompetitiveIntelligenceCertainty { get; set; } = 0.50;
+        public double OperationalCertainty { get; set; } = 0.85;
+        public double StrategicCertainty { get; set; } = 0.70;
+        public double OverallBusinessCertainty { get; set; } = 0.70;
+
+        public int OpenHypothesisCount { get; set; }
+        public int ContradictionCount { get; set; }
+        public int StaleLearningCount { get; set; }
+        public int UnvalidatedClaimCount { get; set; }
+        public int HighImpactUnknownCount { get; set; }
+
+        public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
+        public string CalculationVersion { get; set; } = "1.0-HarmonicMean";
+        public string Methodology { get; set; } = "Harmonic risk-weighted aggregation across enterprise dimensions";
+    }
 }
+

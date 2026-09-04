@@ -52,10 +52,29 @@ namespace BusinessModelApp.Api.Controllers
             var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(workspaceId);
             var userId = await _userContext.GetCurrentUserIdAsync();
 
+            var leadId = request.LeadId;
+            if (leadId == Guid.Empty)
+            {
+                var defaultCompanyName = request.Title.Contains("-") ? request.Title.Split('-')[0].Trim() : request.Title;
+                var autoLead = new Lead
+                {
+                    WorkspaceId = targetWorkspaceId,
+                    ContactName = "Commercial Decision Maker",
+                    CompanyName = defaultCompanyName,
+                    Email = $"contact@{defaultCompanyName.ToLower().Replace(" ", "")}.com",
+                    Source = LeadSource.Manual,
+                    Status = LeadStatus.Qualified,
+                    QualityScore = 80.0,
+                    Notes = $"Auto-associated on Opportunity creation: {request.Title}"
+                };
+                var createdLead = await _repository.CreateLeadAsync(autoLead);
+                leadId = createdLead.Id;
+            }
+
             var opp = new Opportunity
             {
                 WorkspaceId = targetWorkspaceId,
-                LeadId = request.LeadId,
+                LeadId = leadId,
                 Title = request.Title,
                 EstimatedValue = request.EstimatedValue,
                 Currency = string.IsNullOrWhiteSpace(request.Currency) ? "INR" : request.Currency,

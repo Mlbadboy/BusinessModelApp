@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BusinessModelApp.Core.Domain.Common;
+using BusinessModelApp.Core.Domain.Reality;
 
 namespace BusinessModelApp.Core.Domain.Commercial
 {
@@ -37,6 +38,10 @@ namespace BusinessModelApp.Core.Domain.Commercial
         public Guid? AssignedToUserId { get; set; }
         public bool IsDeleted { get; private set; }
         public byte[] RowVersion { get; set; } = Guid.NewGuid().ToByteArray();
+
+        // Dual-State: Desired state reflects Charlie's intention; Observed state reflects RealityEngine observation
+        public LeadStatus DesiredState => Status;
+        public ObservedCommercialState ObservedState { get; set; } = new ObservedCommercialState();
 
         // Navigation
         public virtual Workspace Workspace { get; set; }

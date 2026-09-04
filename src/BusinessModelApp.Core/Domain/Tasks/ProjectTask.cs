@@ -1,4 +1,5 @@
 using BusinessModelApp.Core.Domain.Common;
+using BusinessModelApp.Core.Domain.Reality;
 using BusinessModelApp.Core.Domain.Users;
 using System;
 
@@ -16,6 +17,10 @@ namespace BusinessModelApp.Core.Domain.Tasks
 
         public DateTime? DueDate { get; private set; }
         public DateTime? CompletedAt { get; private set; }
+
+        // Dual-State: Desired state reflects project intention; Observed state reflects RealityEngine observation
+        public TaskStatus DesiredState => Status;
+        public ObservedDeliveryState ObservedState { get; set; } = new ObservedDeliveryState();
 
         // Navigation properties
         public virtual User AssignedTo { get; private set; }

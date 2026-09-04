@@ -42,6 +42,7 @@ import AccountCircle from '@mui/icons-material/AccountCircle';
 import Logout from '@mui/icons-material/Logout';
 import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import PowerSettingsNew from '@mui/icons-material/PowerSettingsNew';
+import Cable from '@mui/icons-material/Cable';
 import { useAuth } from '../../hooks/useAuth';
 import { CommandBarModal } from '../command/CommandBarModal';
 import { useAIControlCenter } from '../../hooks/useAIControlCenter';
@@ -132,8 +133,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [
         { text: 'Business Brain', icon: <Psychology />, path: '/business-brain' },
         { text: 'Business Health', icon: <Analytics />, path: '/analytics' },
-        { text: 'Strategy', icon: <Lightbulb />, path: '/strategy' },
+        { text: 'Executive Core', icon: <Lightbulb />, path: '/strategy' },
       ],
+    },
+    {
+      title: 'INTEGRATIONS',
+      items: [{ text: 'Charlie Connect', icon: <Cable />, path: '/connect' }],
     },
     {
       title: 'AI SYSTEM',

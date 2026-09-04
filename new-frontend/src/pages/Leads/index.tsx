@@ -22,6 +22,8 @@ import {
 } from '@mui/material';
 import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import Add from '@mui/icons-material/Add';
+import TrendingUp from '@mui/icons-material/TrendingUp';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/Layout/Layout';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { useCommercial, LeadDto } from '../../hooks/useCommercial';
@@ -37,7 +39,8 @@ const LEAD_STATUS_LABELS: Record<number, string> = {
 };
 
 export const Leads: React.FC = () => {
-  const { leads, isLoading, createLead, scoreLeadWithAI } = useCommercial();
+  const navigate = useNavigate();
+  const { leads, isLoading, createLead, scoreLeadWithAI, qualifyLead } = useCommercial();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [contactName, setContactName] = useState('');
@@ -46,6 +49,14 @@ export const Leads: React.FC = () => {
   const [companyName, setCompanyName] = useState('');
   const [scoringLeadId, setScoringLeadId] = useState<string | null>(null);
 
+  // Convert to Deal Modal State
+  const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [targetLead, setTargetLead] = useState<LeadDto | null>(null);
+  const [dealTitle, setDealTitle] = useState('');
+  const [dealValue, setDealValue] = useState('1200000');
+  const [primaryConcern, setPrimaryConcern] = useState('');
+  const [nextStep, setNextStep] = useState('Deliver tailored commercial proposal');
+
   const handleScoreLead = async (leadId: string) => {
     setScoringLeadId(leadId);
     try {
@@ -53,6 +64,31 @@ export const Leads: React.FC = () => {
     } finally {
       setScoringLeadId(null);
     }
+  };
+
+  const handleOpenConvertModal = (lead: LeadDto) => {
+    setTargetLead(lead);
+    setDealTitle(`${lead.companyName || 'Enterprise'} - Commercial Solution`);
+    setDealValue('1200000');
+    setPrimaryConcern('Compliance and SLA verification');
+    setNextStep('Deliver executive commercial proposal');
+    setConvertModalOpen(true);
+  };
+
+  const handleConvertSubmit = async () => {
+    if (!targetLead || !dealTitle.trim()) return;
+    await qualifyLead.mutateAsync({
+      leadId: targetLead.id,
+      input: {
+        title: dealTitle,
+        estimatedValue: Number(dealValue) || 1200000,
+        currency: 'INR',
+        primaryConcern,
+        nextStep,
+      },
+    });
+    setConvertModalOpen(false);
+    setTargetLead(null);
   };
 
   const handleCreateSubmit = async () => {
@@ -161,15 +197,42 @@ export const Leads: React.FC = () => {
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={scoringLeadId === lead.id ? <CircularProgress size={14} /> : <AutoAwesome />}
-                              disabled={scoringLeadId === lead.id}
-                              onClick={() => handleScoreLead(lead.id)}
-                            >
-                              AI Qualify
-                            </Button>
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={scoringLeadId === lead.id ? <CircularProgress size={14} /> : <AutoAwesome />}
+                                disabled={scoringLeadId === lead.id}
+                                onClick={() => handleScoreLead(lead.id)}
+                              >
+                                AI Qualify
+                              </Button>
+                              {lead.hasOpportunity ? (
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  sx={{ color: '#10B981', fontWeight: 600 }}
+                                  onClick={() => navigate('/opportunities')}
+                                >
+                                  Deal Active
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  startIcon={<TrendingUp />}
+                                  onClick={() => handleOpenConvertModal(lead)}
+                                  sx={{
+                                    backgroundColor: '#00F0FF',
+                                    color: '#070A0F',
+                                    fontWeight: 700,
+                                    '&:hover': { backgroundColor: '#38BDF8' },
+                                  }}
+                                >
+                                  Convert to Deal
+                                </Button>
+                              )}
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       ))
@@ -236,6 +299,77 @@ export const Leads: React.FC = () => {
             </Button>
             <Button variant="contained" onClick={handleCreateSubmit}>
               Create Lead
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Convert to Opportunity Modal */}
+        <Dialog
+          open={convertModalOpen}
+          onClose={() => setConvertModalOpen(false)}
+          PaperProps={{
+            sx: {
+              backgroundColor: '#0D1118',
+              border: '1px solid rgba(0, 240, 255, 0.3)',
+              minWidth: 450,
+            },
+          }}
+        >
+          <DialogTitle sx={{ color: '#F8FAFC', fontWeight: 'bold' }}>
+            Convert Lead to Commercial Deal
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Converting {targetLead?.contactName} ({targetLead?.companyName}) into an active opportunity.
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label="Opportunity Title"
+                fullWidth
+                size="small"
+                value={dealTitle}
+                onChange={(e) => setDealTitle(e.target.value)}
+              />
+              <TextField
+                label="Estimated Value (INR)"
+                type="number"
+                fullWidth
+                size="small"
+                value={dealValue}
+                onChange={(e) => setDealValue(e.target.value)}
+              />
+              <TextField
+                label="Primary Concern"
+                placeholder="e.g. Local SLA compliance"
+                fullWidth
+                size="small"
+                value={primaryConcern}
+                onChange={(e) => setPrimaryConcern(e.target.value)}
+              />
+              <TextField
+                label="Next Step"
+                placeholder="e.g. Schedule technical demo"
+                fullWidth
+                size="small"
+                value={nextStep}
+                onChange={(e) => setNextStep(e.target.value)}
+              />
+            </Stack>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setConvertModalOpen(false)} sx={{ color: 'text.secondary' }}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleConvertSubmit}
+              sx={{
+                background: 'linear-gradient(135deg, #00E5FF, #00B0FF)',
+                color: '#0A0E17',
+                fontWeight: 700,
+              }}
+            >
+              Convert to Opportunity
             </Button>
           </DialogActions>
         </Dialog>

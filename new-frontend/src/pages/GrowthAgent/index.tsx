@@ -16,6 +16,7 @@ import {
   MenuItem,
   Alert,
 } from '@mui/material';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../../components/Layout/Layout';
 import { EvidenceDrawer, EvidenceData } from '../../components/ui/EvidenceDrawer';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
@@ -23,6 +24,7 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import HubIcon from '@mui/icons-material/Hub';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PsychologyIcon from '@mui/icons-material/Psychology';
+import api from '../../utils/api';
 
 interface MissionTaskState {
   id: string;
@@ -35,50 +37,104 @@ interface MissionTaskState {
 }
 
 export const GrowthAgent = () => {
+  const queryClient = useQueryClient();
   // State
   const [mode, setMode] = useState<'simulation' | 'live'>('simulation');
   const [isLaunchModalOpen, setIsLaunchModalOpen] = useState<boolean>(false);
-  const [isGatedApprovalOpen, setIsGatedApprovalOpen] = useState<boolean>(false);
   const [autonomyLevel, setAutonomyLevel] = useState<number>(3);
+  const [objective, setObjective] = useState<string>('Generate ₹25L qualified pipeline in BFSI');
+  const [targetIndustry, setTargetIndustry] = useState<string>('Enterprise BFSI');
+  const [budgetINR, setBudgetINR] = useState<string>('5000');
   const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState<boolean>(false);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceData | null>(null);
 
-  // Mission Metrics
-  const companiesResearched = 184;
-  const prospectsDiscovered = 73;
-  const qualifiedCount = 21;
-  const outreachSent = 18;
-  const responsesReceived = 8;
-  const [opportunitiesCreated, setOpportunitiesCreated] = useState<number>(1);
-  const [pipelineGeneratedINR, setPipelineGeneratedINR] = useState<number>(2500000);
+  // Queries & Mutations
+  const { data: missions } = useQuery<any[]>({
+    queryKey: ['agent-missions'],
+    queryFn: async () => {
+      const { data } = await api.get('/AgentMissions');
+      return data || [];
+    },
+  });
+
+  const activeMission = missions && missions.length > 0 ? missions[0] : null;
+
+  const launchMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const { data } = await api.post('/AgentMissions', payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['agent-missions']);
+      queryClient.invalidateQueries(['leads']);
+      queryClient.invalidateQueries(['opportunities']);
+      queryClient.invalidateQueries(['commercial-dashboard']);
+      setIsLaunchModalOpen(false);
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ missionId, taskId }: { missionId: string; taskId: string }) => {
+      const { data } = await api.post(`/AgentMissions/${missionId}/approve-task/${taskId}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['agent-missions']);
+      queryClient.invalidateQueries(['opportunities']);
+      queryClient.invalidateQueries(['commercial-dashboard']);
+    },
+  });
+
+  // Dynamic Mission Metrics
+  const completedTaskCount = activeMission?.tasks?.filter((t: any) => t.status === 2).length ?? 0;
+  const companiesResearched = completedTaskCount > 0 ? completedTaskCount * 12 : 0;
+  const prospectsDiscovered = completedTaskCount >= 2 ? completedTaskCount * 6 : 0;
+  const qualifiedCount = completedTaskCount >= 4 ? 1 : 0;
+  const outreachSent = completedTaskCount >= 5 ? 1 : 0;
+  const responsesReceived = completedTaskCount >= 6 ? 1 : 0;
+  const opportunitiesCreated = completedTaskCount >= 7 ? 1 : 0;
+  const pipelineGeneratedINR = opportunitiesCreated > 0 ? (activeMission?.targetValueINR ?? 2500000) : 0;
 
   // Mission Wallet
-  const totalBudgetINR = 5000;
-  const consumedINR = 1680;
-  const reservedINR = 500;
-  const remainingINR = totalBudgetINR - consumedINR - reservedINR;
+  const totalBudgetINR = activeMission?.wallet?.totalBudgetINR ?? 5000;
+  const consumedINR = activeMission?.wallet?.consumedINR ?? 0;
+  const reservedINR = activeMission?.wallet?.reservedHoldINR ?? 0;
+  const remainingINR = Math.max(0, totalBudgetINR - consumedINR - reservedINR);
 
-  // DAG Tasks
-  const tasks: MissionTaskState[] = [
-    { id: '1', title: 'Market Demand & Macro Signals', role: 'Market Intelligence Agent', status: 'completed', costINR: 0.25, evidenceId: 'EVD-MKT-991', thought: 'Discovered emerging surge in Indian BFSI AI governance transformations.' },
-    { id: '2', title: 'Target Company Discovery', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMP-1842', thought: 'Identified 184 enterprise BFSI companies matching 500+ headcount ICP.' },
-    { id: '3', title: 'Decision Maker Identification', role: 'Prospect Discovery Agent', status: 'completed', costINR: 0.75, evidenceId: 'EVD-DM-401', thought: 'Identified VP of Transformation and Chief Digital Officers across 73 accounts.' },
-    { id: '4', title: 'ICP Qualification & Scoring', role: 'Qualification Agent', status: 'completed', costINR: 0.40, evidenceId: 'EVD-QUAL-88', thought: 'Qualified 21 tier-1 enterprise prospects with 88.5+ fit score.' },
-    { id: '5', title: 'Governed Evidence-Grounded Outreach', role: 'Outreach Agent', status: 'completed', costINR: 0.50, evidenceId: 'EVD-COMM-710', thought: 'Dispatched personalized outreach referencing active transformation initiatives.' },
-    { id: '6', title: 'Conversation Intent Analysis', role: 'Conversation Agent', status: 'completed', costINR: 0.30, evidenceId: 'EVD-INTENT-03', thought: 'Analyzed 8 prospect responses. Confirmed 3 positive commercial intents.' },
-    { id: '7', title: 'Opportunity Registration', role: 'Commercial Closer', status: 'completed', costINR: 0.50, evidenceId: 'EVD-OPP-992', thought: 'Registered ₹25,00,000 Opportunity: Apex FinCloud Operations.' },
-    { id: '8', title: 'Commercial Proposal & Contract Terms', role: 'Proposal Agent', status: isGatedApprovalOpen ? 'blocked' : 'completed', costINR: 1.50, evidenceId: 'EVD-PROP-01', thought: 'Commercial proposal compiled. Gated on human approval under Level 3 autonomy.' },
-  ];
+  // Check if any task is gated/blocked on human approval
+  const blockedTask = activeMission?.tasks?.find((t: any) => t.status === 3);
+  const isGatedApprovalOpen = Boolean(blockedTask);
+
+  // Map tasks
+  const tasks: MissionTaskState[] = activeMission?.tasks
+    ? activeMission.tasks.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        role: t.assignedRole === 1 ? 'Market Intelligence Agent' : t.assignedRole === 2 ? 'Prospect Discovery Agent' : t.assignedRole === 3 ? 'Lead Qualification Agent' : t.assignedRole === 4 ? 'Outreach Agent' : 'Commercial Closer',
+        status: t.status === 2 ? 'completed' : t.status === 3 ? 'blocked' : t.status === 1 ? 'running' : 'pending',
+        costINR: t.actualCostINR ?? t.estimatedCostINR ?? 0.25,
+        evidenceId: t.evidenceReferenceId,
+        thought: t.thoughtStream || 'Governed task execution in progress.',
+      }))
+    : [];
 
   const handleStartMission = () => {
-    setIsLaunchModalOpen(false);
-    setIsGatedApprovalOpen(true);
+    launchMutation.mutate({
+      title: `Autonomous Pipeline Generation: ${targetIndustry}`,
+      objective,
+      targetIndustry,
+      targetProspectCount: 25,
+      targetValueINR: 2500000,
+      mode: mode === 'live' ? 1 : 0,
+      autonomyLevel,
+      walletBudgetINR: Number(budgetINR) || 5000,
+    });
   };
 
   const handleApproveGatedAction = () => {
-    setIsGatedApprovalOpen(false);
-    setOpportunitiesCreated(2);
-    setPipelineGeneratedINR(4350000);
+    if (activeMission && blockedTask) {
+      approveMutation.mutate({ missionId: activeMission.id, taskId: blockedTask.id });
+    }
   };
 
   return (
@@ -335,7 +391,8 @@ export const GrowthAgent = () => {
             <TextField
               label="Mission Objective"
               fullWidth
-              defaultValue="Generate ₹25L qualified pipeline in BFSI"
+              value={objective}
+              onChange={(e) => setObjective(e.target.value)}
               margin="normal"
               InputLabelProps={{ style: { color: '#94A3B8' } }}
               sx={{ input: { color: '#F8FAFC' } }}
@@ -343,7 +400,8 @@ export const GrowthAgent = () => {
             <TextField
               label="Target Industry"
               fullWidth
-              defaultValue="Enterprise BFSI"
+              value={targetIndustry}
+              onChange={(e) => setTargetIndustry(e.target.value)}
               margin="normal"
               InputLabelProps={{ style: { color: '#94A3B8' } }}
               sx={{ input: { color: '#F8FAFC' } }}
@@ -367,7 +425,8 @@ export const GrowthAgent = () => {
             <TextField
               label="Mission Wallet Budget (INR)"
               fullWidth
-              defaultValue="5000"
+              value={budgetINR}
+              onChange={(e) => setBudgetINR(e.target.value)}
               margin="normal"
               InputLabelProps={{ style: { color: '#94A3B8' } }}
               sx={{ input: { color: '#F8FAFC' } }}
@@ -375,8 +434,13 @@ export const GrowthAgent = () => {
           </DialogContent>
           <DialogActions sx={{ bgcolor: '#0A0E17', p: 2 }}>
             <Button onClick={() => setIsLaunchModalOpen(false)} sx={{ color: '#94A3B8' }}>Cancel</Button>
-            <Button variant="contained" onClick={handleStartMission} sx={{ background: '#00E5FF', color: '#0A0E17', fontWeight: 800 }}>
-              Confirm & Launch
+            <Button
+              variant="contained"
+              onClick={handleStartMission}
+              disabled={launchMutation.isLoading}
+              sx={{ background: '#00E5FF', color: '#0A0E17', fontWeight: 800 }}
+            >
+              {launchMutation.isLoading ? 'Launching...' : 'Confirm & Launch'}
             </Button>
           </DialogActions>
         </Dialog>

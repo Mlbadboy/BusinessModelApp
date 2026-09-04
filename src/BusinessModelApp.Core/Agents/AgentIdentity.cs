@@ -13,7 +13,10 @@ namespace BusinessModelApp.Core.Agents
         Conversation = 5,
         ProposalGeneration = 6,
         CommercialCloser = 7,
-        RiskEvaluator = 8
+        RiskEvaluator = 8,
+        ExecutiveOrchestrator = 9,
+        DeliveryEngineer = 10,
+        FinOpsController = 11
     }
 
     public enum AgentActionType
@@ -30,14 +33,27 @@ namespace BusinessModelApp.Core.Agents
         GenerateProposal = 9,
         ProposeDiscount = 10,
         SendContract = 11,
-        DeleteData = 12
+        DeleteData = 12,
+        DispatchVoiceCall = 13
     }
 
     public class AgentIdentity
     {
+        public Guid AgentId { get; set; } = Guid.NewGuid();
         public AgentRole Role { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public Guid? MissionId { get; set; }
+        public List<string> Capabilities { get; set; } = new();
+        public AutonomyLevel AuthorityLevel { get; set; } = AutonomyLevel.Level3_ControlledAutonomy;
+        public decimal BudgetLimitINR { get; set; } = 10000m;
+        public decimal BudgetConsumedINR { get; set; } = 0m;
+        public List<string> AllowedTools { get; set; } = new();
+        public List<string> ForbiddenTools { get; set; } = new();
+        public Guid? ParentAgentId { get; set; }
+        public string Status { get; set; } = "Idle";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         public HashSet<AgentActionType> PermittedActions { get; set; } = new HashSet<AgentActionType>();
 
         public bool CanPerform(AgentActionType action) => PermittedActions.Contains(action);
@@ -79,14 +95,14 @@ namespace BusinessModelApp.Core.Agents
                     Role = role,
                     Name = "Outreach Agent",
                     Description = "Drafts and delivers evidence-grounded communications via governed channels.",
-                    PermittedActions = new HashSet<AgentActionType> { AgentActionType.DraftOutreach, AgentActionType.SendOutreach }
+                    PermittedActions = new HashSet<AgentActionType> { AgentActionType.DraftOutreach, AgentActionType.SendOutreach, AgentActionType.DispatchVoiceCall }
                 },
                 AgentRole.Conversation => new AgentIdentity
                 {
                     Role = role,
                     Name = "Conversation Agent",
                     Description = "Understands prospect intent, handles commercial queries, and detects buying signals.",
-                    PermittedActions = new HashSet<AgentActionType> { AgentActionType.ProcessInboundMessage, AgentActionType.DraftOutreach, AgentActionType.SendOutreach }
+                    PermittedActions = new HashSet<AgentActionType> { AgentActionType.ProcessInboundMessage, AgentActionType.DraftOutreach, AgentActionType.SendOutreach, AgentActionType.DispatchVoiceCall }
                 },
                 AgentRole.ProposalGeneration => new AgentIdentity
                 {

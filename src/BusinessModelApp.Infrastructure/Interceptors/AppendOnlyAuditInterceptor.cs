@@ -44,7 +44,9 @@ namespace BusinessModelApp.Infrastructure.Interceptors
                     entry.Entity is OutcomeRecord ||
                     entry.Entity is FailureRecord ||
                     entry.Entity is CorrectionRecord ||
-                    entry.Entity is LearningEpisode)
+                    entry.Entity is LearningEpisode ||
+                    entry.Entity is LearningReversalNotice ||
+                    entry.Entity is LearningInfluenceRecord)
                 {
                     if (entry.State == EntityState.Modified)
                     {

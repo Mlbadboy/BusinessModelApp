@@ -69,13 +69,14 @@ namespace BusinessModelApp.Core.Agents
                     break;
 
                 case AgentActionType.SendOutreach:
+                case AgentActionType.DispatchVoiceCall:
                     if (autonomyLevel == AutonomyLevel.Level0_Observe || autonomyLevel == AutonomyLevel.Level1_Recommend)
                     {
                         return new PolicyDecision
                         {
                             Decision = PolicyActionDecision.RequireHumanApproval,
-                            Reason = $"Outbound communications require human approval under {autonomyLevel}.",
-                            RiskScore = 2
+                            Reason = $"Outbound voice/message communications require human approval under {autonomyLevel}.",
+                            RiskScore = 3
                         };
                     }
                     break;

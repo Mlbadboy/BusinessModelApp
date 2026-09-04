@@ -228,9 +228,64 @@ namespace BusinessModelApp.Core.Services
 
                 var parameters = new Dictionary<string, object>
                 {
-                    { "company", "Apex Financial Technologies" },
                     { "amount", mission.TargetValueINR }
                 };
+
+                // Propagate discovered account metadata from ResearchCompany task
+                var researchTask = mission.Tasks.FirstOrDefault(t => t.ActionType == AgentActionType.ResearchCompany && t.Status == AgentTaskStatus.Completed);
+                if (researchTask != null && !string.IsNullOrWhiteSpace(researchTask.OutputResultJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(researchTask.OutputResultJson);
+                        if (doc.RootElement.TryGetProperty("company", out var cProp) && !string.IsNullOrWhiteSpace(cProp.GetString()))
+                            parameters["company"] = cProp.GetString()!;
+                        if (doc.RootElement.TryGetProperty("domain", out var dProp) && !string.IsNullOrWhiteSpace(dProp.GetString()))
+                            parameters["domain"] = dProp.GetString()!;
+                        if (doc.RootElement.TryGetProperty("headcount", out var hProp))
+                            parameters["headcount"] = hProp.GetInt32();
+                        if (doc.RootElement.TryGetProperty("evidenceToken", out var eProp) && !string.IsNullOrWhiteSpace(eProp.GetString()))
+                            parameters["provenanceToken"] = eProp.GetString()!;
+                    }
+                    catch { }
+                }
+
+                if (!parameters.ContainsKey("company"))
+                {
+                    parameters["company"] = string.IsNullOrWhiteSpace(mission.TargetIndustry) ? "Apex Financial Technologies" : $"{mission.TargetIndustry} Corp";
+                }
+
+                // Propagate discovered buyer metadata from DiscoverDecisionMakers task
+                var dmTask = mission.Tasks.FirstOrDefault(t => t.ActionType == AgentActionType.DiscoverDecisionMakers && t.Status == AgentTaskStatus.Completed);
+                if (dmTask != null && !string.IsNullOrWhiteSpace(dmTask.OutputResultJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(dmTask.OutputResultJson);
+                        if (doc.RootElement.TryGetProperty("contactName", out var cnProp) && !string.IsNullOrWhiteSpace(cnProp.GetString()))
+                            parameters["contactName"] = cnProp.GetString()!;
+                        if (doc.RootElement.TryGetProperty("title", out var titProp) && !string.IsNullOrWhiteSpace(titProp.GetString()))
+                            parameters["title"] = titProp.GetString()!;
+                        if (doc.RootElement.TryGetProperty("corporateEmail", out var emProp) && !string.IsNullOrWhiteSpace(emProp.GetString()))
+                            parameters["email"] = emProp.GetString()!;
+                    }
+                    catch { }
+                }
+
+                // Forward created leadId to downstream opportunity creation
+                var completedLeadTask = mission.Tasks.FirstOrDefault(t => t.ActionType == AgentActionType.CreateLeadInCRM && t.Status == AgentTaskStatus.Completed);
+                if (completedLeadTask != null && !string.IsNullOrWhiteSpace(completedLeadTask.OutputResultJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(completedLeadTask.OutputResultJson);
+                        if (doc.RootElement.TryGetProperty("leadId", out var lProp) && Guid.TryParse(lProp.GetString(), out var parsedId))
+                        {
+                            parameters["leadId"] = parsedId;
+                        }
+                    }
+                    catch { }
+                }
 
                 ToolExecutionResult toolResult;
                 try

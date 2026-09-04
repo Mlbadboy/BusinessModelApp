@@ -46,6 +46,11 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.Domain.Learning.LearningEpisode> LearningEpisodes { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.Learning.LearningContradictionRecord> LearningContradictions { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.Learning.LearningExperiment> LearningExperiments { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.AlternativeHypothesis> AlternativeHypotheses { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.CounterfactualSimulation> CounterfactualSimulations { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningInfluenceRecord> LearningInfluenceRecords { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.LearningReversalNotice> LearningReversalNotices { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Learning.UncertaintyBudget> UncertaintyBudgets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -423,6 +428,8 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.IntegrityHash).HasMaxLength(64);
                 entity.Ignore(e => e.EvidenceRecordIds);
                 entity.Ignore(e => e.GroundingEvidenceHashes);
+                entity.Ignore(e => e.AlternativeHypotheses);
+                entity.OwnsOne(e => e.ContaminationScore);
                 entity.HasIndex(e => new { e.WorkspaceId, e.State });
                 entity.HasIndex(e => new { e.WorkspaceId, e.Tier });
             });
@@ -479,6 +486,52 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.BudgetCapINR).HasPrecision(18, 2);
                 entity.Property(e => e.SpentINR).HasPrecision(18, 2);
                 entity.HasIndex(e => new { e.WorkspaceId, e.Status });
+            });
+
+            // AlternativeHypothesis
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.AlternativeHypothesis>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.HypothesisCode).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.Statement).IsRequired().HasMaxLength(500);
+                entity.Ignore(e => e.SupportingEvidenceIds);
+                entity.Ignore(e => e.RefutingEvidenceIds);
+                entity.HasIndex(e => e.LearningRecordId);
+            });
+
+            // CounterfactualSimulation
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.CounterfactualSimulation>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ModelId).HasMaxLength(150);
+                entity.Property(e => e.SimulationVersion).HasMaxLength(50);
+                entity.HasIndex(e => new { e.WorkspaceId, e.SourceMissionId });
+            });
+
+            // LearningInfluenceRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningInfluenceRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.SourceType).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.SourceName).HasMaxLength(200);
+                entity.HasIndex(e => new { e.WorkspaceId, e.DecisionId });
+            });
+
+            // LearningReversalNotice
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.LearningReversalNotice>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Reason).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.EstimatedRevenueDeviationINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.LearningRecordId });
+            });
+
+            // UncertaintyBudget
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Learning.UncertaintyBudget>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CalculationVersion).HasMaxLength(50);
+                entity.HasIndex(e => new { e.WorkspaceId, e.CalculatedAt });
             });
         }
     }

@@ -15,15 +15,21 @@ namespace BusinessModelApp.Api.Controllers
     public class LearningController : ControllerBase
     {
         private readonly IInstitutionalLearningService _learningService;
+        private readonly ICounterfactualEngine _counterfactualEngine;
+        private readonly ILearningBenchmarkLab _benchmarkLab;
         private readonly IUserContextService _userContext;
         private readonly ILogger<LearningController> _logger;
 
         public LearningController(
             IInstitutionalLearningService learningService,
+            ICounterfactualEngine counterfactualEngine,
+            ILearningBenchmarkLab benchmarkLab,
             IUserContextService userContext,
             ILogger<LearningController> logger)
         {
             _learningService = learningService ?? throw new ArgumentNullException(nameof(learningService));
+            _counterfactualEngine = counterfactualEngine ?? throw new ArgumentNullException(nameof(counterfactualEngine));
+            _benchmarkLab = benchmarkLab ?? throw new ArgumentNullException(nameof(benchmarkLab));
             _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -238,6 +244,152 @@ namespace BusinessModelApp.Api.Controllers
             {
                 return NotFound(new { message = $"Experiment {id} not found." });
             }
+        }
+
+        // =========================================================================
+        // BATCH 3 HARDENING LAYER ENDPOINTS
+        // =========================================================================
+
+        [HttpGet("{id:guid}/why-not")]
+        public async Task<IActionResult> GetWhyNotAnalysis(Guid id, CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            try
+            {
+                var explanation = await _learningService.ExplainLearningAsync(workspaceId, id, ct);
+                return Ok(new
+                {
+                    explanation.LearningId,
+                    explanation.Statement,
+                    explanation.PrimaryHypothesisRationale,
+                    explanation.WhyNotAlternativesRationale,
+                    explanation.RemainingUncertaintyLevel,
+                    explanation.AlternativeHypotheses,
+                    explanation.ContaminationScore
+                });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Learning record {id} not found." });
+            }
+        }
+
+        [HttpGet("{id:guid}/contamination")]
+        public async Task<IActionResult> GetContaminationScore(Guid id, CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            try
+            {
+                var score = await _learningService.CalculateContaminationScoreAsync(workspaceId, id, ct);
+                return Ok(score);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Learning record {id} not found." });
+            }
+        }
+
+        [HttpGet("decision/{decisionId:guid}/influence")]
+        public async Task<IActionResult> GetDecisionInfluence(Guid decisionId, CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            try
+            {
+                var graph = await _learningService.GetInfluenceForDecisionAsync(workspaceId, decisionId, ct);
+                return Ok(graph);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Decision record {decisionId} not found." });
+            }
+        }
+
+        public class ReverseLearningRequest
+        {
+            public string Reason { get; set; } = string.Empty;
+            public string DisconfirmingEvidence { get; set; } = string.Empty;
+        }
+
+        [HttpPost("{id:guid}/reverse")]
+        public async Task<IActionResult> ReverseLearning(Guid id, [FromBody] ReverseLearningRequest request, CancellationToken ct)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Reason))
+                return BadRequest(new { message = "Reason for reversal is required." });
+
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            try
+            {
+                var notice = await _learningService.ReverseLearningAsync(workspaceId, id, request.Reason, request.DisconfirmingEvidence, ct);
+                return Ok(notice);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Learning record {id} not found." });
+            }
+        }
+
+        [HttpGet("reversals")]
+        public async Task<IActionResult> GetReversalHistory(CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var history = await _learningService.GetReversalHistoryAsync(workspaceId, ct);
+            return Ok(history);
+        }
+
+        [HttpGet("debt")]
+        public async Task<IActionResult> GetLearningDebt(CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var budget = await _learningService.GetLatestUncertaintyBudgetAsync(workspaceId, ct);
+            return Ok(budget);
+        }
+
+        [HttpGet("uncertainty")]
+        public async Task<IActionResult> CalculateUncertaintyBudget(CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var budget = await _learningService.CalculateUncertaintyBudgetAsync(workspaceId, ct);
+            return Ok(budget);
+        }
+
+        public class SimulateCounterfactualRequest
+        {
+            public Guid MissionId { get; set; }
+            public string InterventionDescription { get; set; } = string.Empty;
+            public System.Collections.Generic.Dictionary<string, string> ChangedVariables { get; set; } = new();
+        }
+
+        [HttpPost("counterfactual")]
+        public async Task<IActionResult> SimulateCounterfactual([FromBody] SimulateCounterfactualRequest request, CancellationToken ct)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.InterventionDescription))
+                return BadRequest(new { message = "Intervention description is required." });
+
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var sim = await _counterfactualEngine.SimulateCounterfactualAsync(
+                workspaceId,
+                request.MissionId,
+                request.InterventionDescription,
+                request.ChangedVariables,
+                ct);
+
+            return Ok(sim);
+        }
+
+        [HttpGet("benchmarks")]
+        public async Task<IActionResult> GetBenchmarks(CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var history = await _benchmarkLab.GetBenchmarkHistoryAsync(workspaceId, ct);
+            return Ok(history);
+        }
+
+        [HttpPost("benchmarks/run")]
+        public async Task<IActionResult> RunBenchmark(CancellationToken ct)
+        {
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
+            var result = await _benchmarkLab.RunFullBenchmarkAsync(workspaceId, ct);
+            return Ok(result);
         }
     }
 }

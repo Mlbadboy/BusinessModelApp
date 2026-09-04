@@ -22,6 +22,13 @@ namespace BusinessModelApp.Core.Interfaces
         public List<Guid> SupportingMissionIds { get; set; } = new();
         public List<string> ContradictingNotes { get; set; } = new();
         public string Rationale { get; set; } = string.Empty;
+
+        // Hardening Why-NOT Reasoning & Contamination Metrology
+        public List<AlternativeHypothesis> AlternativeHypotheses { get; set; } = new();
+        public ContaminationScoreVector? ContaminationScore { get; set; }
+        public string PrimaryHypothesisRationale { get; set; } = string.Empty;
+        public string WhyNotAlternativesRationale { get; set; } = string.Empty;
+        public string RemainingUncertaintyLevel { get; set; } = "Low";
     }
 
     public class ContextualLearningPromptItem
@@ -53,5 +60,16 @@ namespace BusinessModelApp.Core.Interfaces
         Task<LearningExperiment> ProposeExperimentAsync(Guid workspaceId, LearningExperiment experiment, CancellationToken ct = default);
         Task<LearningExperiment> RecordExperimentResultAsync(Guid workspaceId, Guid experimentId, decimal actualValue, string conclusion, CancellationToken ct = default);
         Task<LearningExplanation> ExplainLearningAsync(Guid workspaceId, Guid learningRecordId, CancellationToken ct = default);
+
+        // Batch 3 Hardening Layer Additions
+        Task<ContaminationScoreVector> CalculateContaminationScoreAsync(Guid workspaceId, Guid learningRecordId, CancellationToken ct = default);
+        Task<IReadOnlyList<AlternativeHypothesis>> GetAlternativeHypothesesAsync(Guid workspaceId, Guid learningRecordId, CancellationToken ct = default);
+        Task<AlternativeHypothesis> AddAlternativeHypothesisAsync(Guid workspaceId, Guid learningRecordId, string code, string statement, double priorConfidence, CancellationToken ct = default);
+        Task<IReadOnlyList<LearningInfluenceRecord>> BuildDecisionInfluenceGraphAsync(Guid workspaceId, Guid decisionId, CancellationToken ct = default);
+        Task<IReadOnlyList<LearningInfluenceRecord>> GetInfluenceForDecisionAsync(Guid workspaceId, Guid decisionId, CancellationToken ct = default);
+        Task<LearningReversalNotice> ReverseLearningAsync(Guid workspaceId, Guid learningRecordId, string reason, string disconfirmingEvidence, CancellationToken ct = default);
+        Task<IReadOnlyList<LearningReversalNotice>> GetReversalHistoryAsync(Guid workspaceId, CancellationToken ct = default);
+        Task<UncertaintyBudget> CalculateUncertaintyBudgetAsync(Guid workspaceId, CancellationToken ct = default);
+        Task<UncertaintyBudget?> GetLatestUncertaintyBudgetAsync(Guid workspaceId, CancellationToken ct = default);
     }
 }
