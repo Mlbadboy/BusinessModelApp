@@ -221,6 +221,12 @@ builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IMarketRadarService,
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IOpportunityIntelligenceService, BusinessModelApp.Infrastructure.ExternalReality.OpportunityIntelligenceService>();
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IThreatIntelligenceService, BusinessModelApp.Infrastructure.ExternalReality.OpportunityIntelligenceService>();
 
+// Phase 2 Batch 5: Security Command Center & Strix Red/Blue Team Engine
+builder.Services.AddScoped<BusinessModelApp.Infrastructure.Security.SecurityTargetRegistry>();
+builder.Services.AddScoped<BusinessModelApp.Infrastructure.Security.RedTeamAutonomousEngine>();
+builder.Services.AddScoped<BusinessModelApp.Infrastructure.Security.BlueTeamRemediationEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ISecurityCommandCenterService, BusinessModelApp.Infrastructure.Security.SecurityCommandCenterService>();
+
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();

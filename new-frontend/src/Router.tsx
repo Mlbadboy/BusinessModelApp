@@ -19,6 +19,7 @@ const Expenses = lazy(() => import('./pages/Expenses'));
 const ExecutiveCore = lazy(() => import('./pages/ExecutiveCore'));
 const Connect = lazy(() => import('./pages/Connect'));
 const MarketRadar = lazy(() => import('./pages/MarketRadar'));
+const SecurityCommandCenter = lazy(() => import('./pages/SecurityCommandCenter'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -161,6 +162,15 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <MarketRadar />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/security"
+            element={
+              <ProtectedRoute>
+                <SecurityCommandCenter />
               </ProtectedRoute>
             }
           />

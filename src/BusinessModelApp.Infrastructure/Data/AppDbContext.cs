@@ -59,6 +59,10 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.Domain.ExternalReality.MarketOpportunity> MarketOpportunities { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.ExternalReality.MarketThreat> MarketThreats { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.ExternalReality.StrategicRecommendation> StrategicRecommendations { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Security.SecurityTargetRegistration> SecurityTargetRegistrations { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Security.RedTeamCampaign> RedTeamCampaigns { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Security.VulnerabilityFinding> VulnerabilityFindings { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Security.BlueTeamRemediation> BlueTeamRemediations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
