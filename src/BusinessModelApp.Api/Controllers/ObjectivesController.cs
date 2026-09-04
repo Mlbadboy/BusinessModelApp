@@ -10,6 +10,7 @@ using BusinessModelApp.Core.Missions;
 using BusinessModelApp.Core.Objectives;
 using BusinessModelApp.Core.Strategy;
 using BusinessModelApp.Core.WorldModel;
+using BusinessModelApp.Core.Interfaces;
 using BusinessModelApp.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,6 +41,7 @@ namespace BusinessModelApp.Api.Controllers
         private readonly IStrategyEngine _strategyEngine;
         private readonly IDecisionEngine _decisionEngine;
         private readonly IDurableMissionOrchestrator _missionOrchestrator;
+        private readonly IUserContextService _userContext;
         private readonly ILogger<ObjectivesController> _logger;
 
         public ObjectivesController(
@@ -49,6 +51,7 @@ namespace BusinessModelApp.Api.Controllers
             IStrategyEngine strategyEngine,
             IDecisionEngine decisionEngine,
             IDurableMissionOrchestrator missionOrchestrator,
+            IUserContextService userContext,
             ILogger<ObjectivesController> logger)
         {
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
@@ -57,6 +60,7 @@ namespace BusinessModelApp.Api.Controllers
             _strategyEngine = strategyEngine ?? throw new ArgumentNullException(nameof(strategyEngine));
             _decisionEngine = decisionEngine ?? throw new ArgumentNullException(nameof(decisionEngine));
             _missionOrchestrator = missionOrchestrator ?? throw new ArgumentNullException(nameof(missionOrchestrator));
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -68,7 +72,7 @@ namespace BusinessModelApp.Api.Controllers
                 return BadRequest(new { message = "Executive objective prompt cannot be empty." });
             }
 
-            Guid workspaceId = request.WorkspaceId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(request.WorkspaceId, ct);
 
             // 1. Ingest prompt into structured objective
             var objective = await _objectiveEngine.IngestCeoPromptAsync(request.Prompt, workspaceId, ct);
@@ -121,8 +125,9 @@ namespace BusinessModelApp.Api.Controllers
         [HttpGet("active")]
         public async Task<IActionResult> GetActiveObjective(CancellationToken ct)
         {
+            var workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
             var objective = await _dbContext.BusinessObjectives
-                .Where(o => !o.IsDeleted && o.Status == ObjectiveStatus.Active)
+                .Where(o => o.WorkspaceId == workspaceId && !o.IsDeleted && o.Status == ObjectiveStatus.Active)
                 .OrderByDescending(o => o.CreatedAt)
                 .FirstOrDefaultAsync(ct);
 
@@ -136,13 +141,13 @@ namespace BusinessModelApp.Api.Controllers
                 .ToListAsync(ct);
 
             var activeDecision = await _dbContext.DecisionRecords
-                .Where(d => d.ObjectiveId == objective.Id)
+                .Where(d => d.ObjectiveId == objective.Id && d.WorkspaceId == workspaceId)
                 .OrderByDescending(d => d.DecidedAt)
                 .FirstOrDefaultAsync(ct);
 
             var activeMission = await _dbContext.DurableMissions
                 .Include(m => m.Checkpoints)
-                .Where(m => m.ObjectiveId == objective.Id && !m.IsDeleted)
+                .Where(m => m.ObjectiveId == objective.Id && m.WorkspaceId == workspaceId && !m.IsDeleted)
                 .OrderByDescending(m => m.CreatedAt)
                 .FirstOrDefaultAsync(ct);
 
@@ -159,8 +164,9 @@ namespace BusinessModelApp.Api.Controllers
         [HttpPost("{id}/strategies/{strategyId}/select")]
         public async Task<IActionResult> SelectStrategy(Guid id, [FromBody] SelectStrategyRequest? request, Guid? strategyId, CancellationToken ct)
         {
+            var workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
             var targetStrategyId = strategyId ?? request?.StrategyId ?? Guid.Empty;
-            var objective = await _dbContext.BusinessObjectives.FirstOrDefaultAsync(o => o.Id == id, ct);
+            var objective = await _dbContext.BusinessObjectives.FirstOrDefaultAsync(o => o.Id == id && o.WorkspaceId == workspaceId, ct);
             if (objective == null) return NotFound(new { message = $"Objective {id} not found." });
 
             var strategies = await _dbContext.BusinessStrategies.Where(s => s.ObjectiveId == id).ToListAsync(ct);

@@ -105,8 +105,27 @@ builder.Services.AddIdentity<User, Role>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// 6. Configure JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "SecureSecretKeyForBusinessModelAppAuthentication2026";
+// 6. Configure JWT Authentication according to Phase 2 JWT Security Law
+var isProduction = builder.Environment.IsProduction();
+var configuredJwtKey = builder.Configuration["Jwt:Key"];
+
+string jwtKey;
+if (string.IsNullOrWhiteSpace(configuredJwtKey) || Encoding.UTF8.GetByteCount(configuredJwtKey) < 32)
+{
+    if (isProduction)
+    {
+        throw new InvalidOperationException("CRITICAL: Production JWT signing key is absent, weak, or below 256 bits (32 bytes). Application must fail closed according to Phase 2 JWT Security Law.");
+    }
+
+    // Development/test environments generate ephemeral cryptographically secure keys in-memory.
+    // They are never static, never committed, and never reused across environments.
+    jwtKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+}
+else
+{
+    jwtKey = configuredJwtKey;
+}
+
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "BusinessModelApp";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BusinessModelAppClient";
 
@@ -117,7 +136,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = isProduction;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -284,6 +303,12 @@ app.Use(async (context, next) =>
     context.Response.Headers.Append("X-Frame-Options", "DENY");
     context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;");
+
+    if (app.Environment.IsProduction())
+    {
+        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    }
 
     // Correlation ID
     if (!context.Request.Headers.TryGetValue("X-Correlation-Id", out var correlationId) || string.IsNullOrWhiteSpace(correlationId))
@@ -294,6 +319,28 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async ctx =>
+        {
+            ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            ctx.Response.ContentType = "application/problem+json";
+            var correlationId = ctx.Response.Headers["X-Correlation-Id"].ToString();
+            var problem = new
+            {
+                type = "https://tools.ietf.org/html/rfc7807",
+                title = "An internal server error occurred.",
+                status = StatusCodes.Status500InternalServerError,
+                correlationId = string.IsNullOrEmpty(correlationId) ? Guid.NewGuid().ToString("N") : correlationId,
+                timestamp = DateTime.UtcNow
+            };
+            await ctx.Response.WriteAsJsonAsync(problem);
+        });
+    });
+}
 
 if (app.Environment.IsDevelopment())
 {

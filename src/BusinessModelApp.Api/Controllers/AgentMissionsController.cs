@@ -66,22 +66,27 @@ namespace BusinessModelApp.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        public ActionResult<AgentMission> GetMissionById(Guid id)
+        public async Task<ActionResult<AgentMission>> GetMissionById(Guid id)
         {
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null);
             var mission = _orchestrator.GetMission(id);
-            if (mission == null) return NotFound();
+            if (mission == null || mission.WorkspaceId != targetWorkspaceId) return NotFound();
             return Ok(mission);
         }
 
         [HttpPost("{id}/approve-task/{taskId}")]
         public async Task<ActionResult> ApproveGatedTask(Guid id, Guid taskId)
         {
+            var targetWorkspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null);
+            var mission = _orchestrator.GetMission(id);
+            if (mission == null || mission.WorkspaceId != targetWorkspaceId) return NotFound();
+
             var approverName = User.Identity?.Name ?? "Executive Leader";
             var success = await _orchestrator.ApproveGatedTaskAsync(id, taskId, approverName);
             if (!success) return BadRequest(new { message = "Unable to approve task. Task may not exist or is not blocked on approval." });
 
-            var mission = _orchestrator.GetMission(id);
-            return Ok(mission);
+            var updated = _orchestrator.GetMission(id);
+            return Ok(updated);
         }
     }
 }

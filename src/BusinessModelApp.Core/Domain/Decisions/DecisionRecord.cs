@@ -35,6 +35,7 @@ namespace BusinessModelApp.Core.Domain.Decisions
     public class DecisionRecord : Entity
     {
         public Guid DecisionId => Id;
+        public Guid? WorkspaceId { get; set; }
         public Guid ObjectiveId { get; set; }
         public Guid? MissionId { get; set; }
         public Guid? StrategyId { get; set; }

@@ -1,5 +1,8 @@
 using BusinessModelApp.Core.AI;
 using BusinessModelApp.Core.Domain.Commercial;
+using BusinessModelApp.Core.Domain.Decisions;
+using BusinessModelApp.Core.Domain.Missions;
+using BusinessModelApp.Core.Domain.Reality;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -28,7 +31,14 @@ namespace BusinessModelApp.Infrastructure.Interceptors
 
             foreach (var entry in context.ChangeTracker.Entries())
             {
-                if (entry.Entity is AuditEvent || entry.Entity is Activity || entry.Entity is BusinessActivity || entry.Entity is AICallRecord)
+                if (entry.Entity is AuditEvent ||
+                    entry.Entity is Activity ||
+                    entry.Entity is BusinessActivity ||
+                    entry.Entity is AICallRecord ||
+                    entry.Entity is DecisionRecord ||
+                    entry.Entity is BusinessModelApp.Core.Domain.Reality.EvidenceRecord ||
+                    entry.Entity is BusinessModelApp.Core.Domain.Commercial.EvidenceRecord ||
+                    entry.Entity is DurableMissionCheckpoint)
                 {
                     if (entry.State == EntityState.Modified)
                     {

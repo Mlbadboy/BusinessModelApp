@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using BusinessModelApp.Core.Interfaces;
 using BusinessModelApp.Core.WorldModel;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,18 +15,23 @@ namespace BusinessModelApp.Api.Controllers
     public class WorldModelController : ControllerBase
     {
         private readonly ICompanyWorldModel _worldModel;
+        private readonly IUserContextService _userContext;
         private readonly ILogger<WorldModelController> _logger;
 
-        public WorldModelController(ICompanyWorldModel worldModel, ILogger<WorldModelController> logger)
+        public WorldModelController(
+            ICompanyWorldModel worldModel,
+            IUserContextService userContext,
+            ILogger<WorldModelController> logger)
         {
             _worldModel = worldModel ?? throw new ArgumentNullException(nameof(worldModel));
+            _userContext = userContext ?? throw new ArgumentNullException(nameof(userContext));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         [HttpGet("snapshot")]
         public async Task<IActionResult> GetSnapshot(CancellationToken ct)
         {
-            Guid workspaceId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            Guid workspaceId = await _userContext.GetAuthorizedWorkspaceIdAsync(null, ct);
             var snapshot = await _worldModel.CaptureVerifiedSnapshotAsync(workspaceId, ct);
 
             return Ok(new
