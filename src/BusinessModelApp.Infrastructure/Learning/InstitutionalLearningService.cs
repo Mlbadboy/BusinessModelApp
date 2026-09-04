@@ -182,6 +182,8 @@ namespace BusinessModelApp.Infrastructure.Learning
         {
             if (workspaceId == Guid.Empty)
                 throw new ArgumentException("WorkspaceId must not be empty.", nameof(workspaceId));
+            if (missionId == Guid.Empty)
+                throw new ArgumentException("Empirical mission outcome ID must be provided. External signals or ungrounded hypotheses cannot directly create institutional learning candidates.", nameof(missionId));
             if (string.IsNullOrWhiteSpace(statement))
                 throw new ArgumentException("Learning statement is required.", nameof(statement));
 

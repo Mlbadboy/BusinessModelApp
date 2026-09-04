@@ -14,5 +14,6 @@ namespace BusinessModelApp.Core.Interfaces
         Task<CompetitorProfile> UpdateCompetitorProfileAsync(CompetitorProfile profile, CancellationToken ct = default);
         Task<IReadOnlyList<CompetitorProfile>> ListCompetitorsAsync(Guid workspaceId, CancellationToken ct = default);
         Task<CompetitorProfile?> GetCompetitorAsync(Guid competitorId, Guid workspaceId, CancellationToken ct = default);
+        Task<MarketRegimeAssessment> AssessMarketRegimeAsync(Guid workspaceId, CancellationToken ct = default);
     }
 }

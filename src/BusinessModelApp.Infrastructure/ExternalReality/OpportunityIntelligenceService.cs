@@ -60,6 +60,18 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                 throw new KeyNotFoundException($"MarketOpportunity {opportunityId} not found for workspace {workspaceId}.");
             }
 
+            var blockingFactors = new List<string>();
+
+            // Invariant: Multi-source corroboration must distinguish independence
+            // IndependentEvidenceCount != SourceCount
+            double evidenceConfidence = opp.Confidence;
+            if (opp.EvidenceIds.Count >= 3 && opp.IndependentEvidenceCount <= 1)
+            {
+                // Syndicated duplication saturation: Multiple aggregators echoing 1 root release
+                evidenceConfidence = Math.Min(evidenceConfidence, 0.40);
+                blockingFactors.Add("Syndicated claim saturation detected: single independent confirmation across multiple sources.");
+            }
+
             var dimensions = new Dictionary<string, double>
             {
                 ["MarketAttractiveness"] = 0.85,
@@ -71,7 +83,7 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                 ["ExecutionEase"] = Math.Clamp(1.0 - opp.ImplementationComplexityScore, 0.10, 0.90),
                 ["TimeToValue"] = Math.Clamp(1.0 - (opp.TimeToValueDays / 180.0), 0.10, 0.90),
                 ["RiskSafety"] = Math.Clamp(1.0 - opp.RiskScore, 0.10, 0.90),
-                ["EvidenceConfidence"] = opp.Confidence,
+                ["EvidenceConfidence"] = evidenceConfidence,
                 ["CausalConfidence"] = opp.CausalConfidence,
                 ["Freshness"] = opp.FreshnessScore,
                 ["PurityFromContamination"] = Math.Clamp(1.0 - opp.ContaminationRisk, 0.0, 1.0)
@@ -93,11 +105,10 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                                (dimensions["PurityFromContamination"] * 0.05);
 
             // Epistemic Dampeners: Weak evidence or high contamination downweights commercial viability
-            double confidenceDampener = 0.60 + (0.40 * opp.Confidence);
+            double confidenceDampener = 0.60 + (0.40 * evidenceConfidence);
             double contaminationDampener = 1.0 - (opp.ContaminationRisk * 0.40);
             composite = Math.Clamp(Math.Round(composite * confidenceDampener * contaminationDampener, 3), 0.0, 1.0);
 
-            var blockingFactors = new List<string>();
             if (opp.ContaminationRisk > 0.30)
             {
                 blockingFactors.Add("Contamination risk exceeds 0.30 threshold; strategic promotion blocked.");
@@ -111,15 +122,57 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                 blockingFactors.Add("Risk score exceeds 0.70; requires governance risk committee sign-off.");
             }
 
+            // Explicit Score Composition Breakdown
+            var positiveContributors = new Dictionary<string, double>();
+            var negativeContributors = new Dictionary<string, double>();
+
+            foreach (var kvp in dimensions)
+            {
+                if (kvp.Value >= 0.65)
+                {
+                    positiveContributors[kvp.Key] = Math.Round(kvp.Value, 2);
+                }
+                else if (kvp.Value <= 0.50 || kvp.Key == "PurityFromContamination" || kvp.Key == "EvidenceConfidence")
+                {
+                    negativeContributors[kvp.Key] = Math.Round(kvp.Value, 2);
+                }
+            }
+
+            double scoreConfidence = Math.Clamp(Math.Round(evidenceConfidence * (1.0 - (opp.ContaminationRisk * 0.5)), 2), 0.10, 1.0);
+            double causalConfidence = Math.Clamp(Math.Round(opp.CausalConfidence, 2), 0.10, 1.0);
+
+            var compositionBuilder = new System.Text.StringBuilder();
+            compositionBuilder.AppendLine($"Commercial Score: {composite * 100:F1}");
+            compositionBuilder.AppendLine();
+            compositionBuilder.AppendLine("Positive contributors:");
+            foreach (var p in positiveContributors)
+            {
+                compositionBuilder.AppendLine($"+ {p.Key}: {p.Value:F2}");
+            }
+            compositionBuilder.AppendLine();
+            compositionBuilder.AppendLine("Negative contributors:");
+            foreach (var n in negativeContributors)
+            {
+                compositionBuilder.AppendLine($"- {n.Key}: {n.Value:F2}");
+            }
+            compositionBuilder.AppendLine();
+            compositionBuilder.AppendLine($"Score confidence: {scoreConfidence * 100:F0}%");
+            compositionBuilder.AppendLine($"Causal confidence: {causalConfidence * 100:F0}%");
+
             return new CommercialOpportunityScore
             {
                 OpportunityId = opp.Id,
                 Score = composite,
-                ScoreVersion = "1.0-Deterministic13Dim",
+                ScoreVersion = "1.1-Deterministic13DimWithComposition",
                 DimensionScores = dimensions,
                 ConfidenceIntervalLower = Math.Clamp(Math.Round(composite - 0.07, 3), 0.0, 1.0),
                 ConfidenceIntervalUpper = Math.Clamp(Math.Round(composite + 0.07, 3), 0.0, 1.0),
                 BlockingFactors = blockingFactors,
+                PositiveContributors = positiveContributors,
+                NegativeContributors = negativeContributors,
+                ScoreConfidence = scoreConfidence,
+                CausalConfidence = causalConfidence,
+                FormattedCompositionSummary = compositionBuilder.ToString(),
                 CalculatedAt = DateTime.UtcNow
             };
         }
@@ -135,6 +188,14 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
             decimal baseRev = opp.RevenuePotentialINR > 0 ? opp.RevenuePotentialINR : 2500000m;
             decimal baseMargin = opp.MarginPotentialPercent > 0 ? opp.MarginPotentialPercent : 65m;
 
+            // Strict Uncertainty Propagation:
+            // Weak external evidence -> wide simulation interval
+            // Charlie should NEVER transform: Low-confidence input + complex simulation = High-confidence recommendation
+            double uncertaintyFactor = Math.Clamp(1.0 - opp.Confidence, 0.0, 1.0);
+            decimal downsideRevenueMultiplier = Math.Max(0.25m, (decimal)(0.70 - (uncertaintyFactor * 0.40)));
+            double baseScenarioConfidence = Math.Clamp(Math.Round(opp.Confidence, 2), 0.10, 1.0);
+            double simulatedHypothesisConfidence = Math.Clamp(Math.Round(Math.Min(opp.Confidence, opp.Confidence * opp.CausalConfidence * 1.1), 2), 0.10, opp.Confidence);
+
             var scenarios = new List<ScenarioOutcome>
             {
                 new ScenarioOutcome
@@ -143,7 +204,7 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                     AssumptionsJson = JsonSerializer.Serialize(new[] { "Standard market conditions", "Historical conversion rate" }),
                     ExpectedRevenueINR = baseRev,
                     ExpectedMarginPercent = baseMargin,
-                    Confidence = opp.Confidence,
+                    Confidence = baseScenarioConfidence,
                     SensitivityRanking = 1.0,
                     IsSimulation = true,
                     Classification = TruthClassification.Hypothesis
@@ -154,7 +215,7 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                     AssumptionsJson = JsonSerializer.Serialize(new[] { "Competitor does not match pricing", "Adoption accelerates 25%" }),
                     ExpectedRevenueINR = Math.Round(baseRev * 1.35m, 2),
                     ExpectedMarginPercent = Math.Min(baseMargin + 5m, 85m),
-                    Confidence = Math.Round(opp.Confidence * 0.75, 2),
+                    Confidence = Math.Round(simulatedHypothesisConfidence * 0.85, 2),
                     SensitivityRanking = 2.0,
                     IsSimulation = true,
                     Classification = TruthClassification.Hypothesis
@@ -163,9 +224,9 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                 {
                     ScenarioName = "Downside",
                     AssumptionsJson = JsonSerializer.Serialize(new[] { "Demand softens 30%", "Customer CAC increases 20%" }),
-                    ExpectedRevenueINR = Math.Round(baseRev * 0.70m, 2),
-                    ExpectedMarginPercent = Math.Max(baseMargin - 10m, 25m),
-                    Confidence = Math.Round(opp.Confidence * 0.85, 2),
+                    ExpectedRevenueINR = Math.Round(baseRev * downsideRevenueMultiplier, 2),
+                    ExpectedMarginPercent = Math.Max(baseMargin - (decimal)(10 + (uncertaintyFactor * 10)), 15m),
+                    Confidence = Math.Round(simulatedHypothesisConfidence * 0.90, 2),
                     SensitivityRanking = 1.5,
                     IsSimulation = true,
                     Classification = TruthClassification.Hypothesis
@@ -176,7 +237,7 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                     AssumptionsJson = JsonSerializer.Serialize(new[] { "Competitor initiates matching price discount within 30 days" }),
                     ExpectedRevenueINR = Math.Round(baseRev * 0.80m, 2),
                     ExpectedMarginPercent = Math.Max(baseMargin - 15m, 20m),
-                    Confidence = 0.60,
+                    Confidence = Math.Round(simulatedHypothesisConfidence * 0.80, 2),
                     SensitivityRanking = 3.0,
                     IsSimulation = true,
                     Classification = TruthClassification.Hypothesis
@@ -187,7 +248,7 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                     AssumptionsJson = JsonSerializer.Serialize(new[] { "Regulatory compliance compliance cost shock", "Interest rate spike" }),
                     ExpectedRevenueINR = Math.Round(baseRev * 0.50m, 2),
                     ExpectedMarginPercent = Math.Max(baseMargin - 20m, 15m),
-                    Confidence = 0.40,
+                    Confidence = Math.Round(simulatedHypothesisConfidence * 0.60, 2),
                     SensitivityRanking = 4.0,
                     IsSimulation = true,
                     Classification = TruthClassification.Hypothesis
@@ -218,6 +279,13 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                 new { Code = "H3", Statement = "Wait for competitor response before committing resources", Status = "ConsideredDefensive" }
             };
 
+            // Invariant: Strict Uncertainty Propagation
+            // Recommendation confidence can NEVER exceed input evidence confidence!
+            // RecommendationConfidence <= min(EvidenceConfidence, EvidenceConfidence * CausalConfidence + 0.10)
+            double maxAllowedConfidence = Math.Min(opp.Confidence, (opp.Confidence * (0.50 + (0.50 * opp.CausalConfidence))));
+            double recommendationConfidence = Math.Clamp(Math.Round(maxAllowedConfidence, 2), 0.05, opp.Confidence);
+            double simulationSpreadRatio = Math.Round(1.0 + ((1.0 - opp.Confidence) * 1.5), 2);
+
             var recommendation = new StrategicRecommendation
             {
                 WorkspaceId = workspaceId,
@@ -237,10 +305,12 @@ namespace BusinessModelApp.Infrastructure.ExternalReality
                     ["PlatformIntegrationCost"] = "Low sensitivity"
                 }),
                 ContaminationRisk = opp.ContaminationRisk,
-                UncertaintyBudgetImpactSummary = "Reduces Market Uncertainty by 12% upon successful experiment completion.",
+                SimulationSpreadRatio = simulationSpreadRatio,
+                UncertaintyBudgetImpactSummary = $"Uncertainty Propagation: Input evidence confidence {opp.Confidence:F2} propagates to recommendation confidence {recommendationConfidence:F2} across simulation spread ratio {simulationSpreadRatio:F2}.",
                 ExpectedValueINR = opp.RevenuePotentialINR,
                 DownsideRiskINR = downsideRisk,
-                Confidence = opp.Confidence,
+                Confidence = recommendationConfidence,
+                IndependentEvidenceCount = opp.IndependentEvidenceCount,
                 RequiredGovernanceApprovalsJson = JsonSerializer.Serialize(new[] { "CEOApproval", "FinanceReview" }),
                 Status = "AdvisoryPrepared",
                 CreatedAt = DateTime.UtcNow

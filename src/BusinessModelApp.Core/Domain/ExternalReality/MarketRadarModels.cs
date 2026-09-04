@@ -109,6 +109,33 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 
+    public enum MarketRegimeState
+    {
+        Stable = 1,
+        Growth = 2,
+        Declining = 3,
+        Volatile = 4,
+        PriceWar = 5,
+        CategoryDisruption = 6,
+        RegulatoryShift = 7,
+        SupplyShock = 8
+    }
+
+    /// <summary>
+    /// Governed assessment of macro or competitive market regime changes.
+    /// Invariant: Charlie aggregates temporal signal cascades rather than treating them as isolated noise.
+    /// </summary>
+    public class MarketRegimeAssessment
+    {
+        public Guid WorkspaceId { get; set; }
+        public MarketRegimeState CurrentRegime { get; set; } = MarketRegimeState.Stable;
+        public string Description { get; set; } = string.Empty;
+        public double RegimeConfidence { get; set; } = 0.80;
+        public List<string> TriggeringPatterns { get; set; } = new();
+        public List<Guid> SignalCascadeIds { get; set; } = new();
+        public DateTime AssessedAt { get; set; } = DateTime.UtcNow;
+    }
+
     public enum OpportunityStatus
     {
         Detected = 1,
@@ -128,6 +155,7 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
 
     /// <summary>
     /// Commercial Opportunity derived from verified external market signals.
+    /// Invariant: ApprovedForExperiment != ApprovedForExecution. Zero execution authority.
     /// </summary>
     public class MarketOpportunity : Entity
     {
@@ -137,6 +165,7 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
 
         public List<Guid> OriginSignalIds { get; set; } = new();
         public List<Guid> EvidenceIds { get; set; } = new();
+        public int IndependentEvidenceCount { get; set; } = 1;
 
         public string CustomerProblem { get; set; } = string.Empty;
         public string TargetSegment { get; set; } = string.Empty;
@@ -197,18 +226,26 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
     }
 
     /// <summary>
-    /// Deterministic commercial scoring object across 13 distinct dimensions.
+    /// Deterministic commercial scoring object across 13 distinct dimensions with explicit score composition.
     /// </summary>
     public class CommercialOpportunityScore
     {
         public Guid OpportunityId { get; set; }
         public double Score { get; set; } = 0.70; // 0.0 to 1.0
-        public string ScoreVersion { get; set; } = "1.0-Deterministic13Dim";
+        public string ScoreVersion { get; set; } = "1.1-Deterministic13DimWithComposition";
 
         public Dictionary<string, double> DimensionScores { get; set; } = new();
         public double ConfidenceIntervalLower { get; set; } = 0.62;
         public double ConfidenceIntervalUpper { get; set; } = 0.78;
         public List<string> BlockingFactors { get; set; } = new();
+
+        // Score Composition Breakdown
+        public Dictionary<string, double> PositiveContributors { get; set; } = new();
+        public Dictionary<string, double> NegativeContributors { get; set; } = new();
+        public double ScoreConfidence { get; set; } = 0.70;
+        public double CausalConfidence { get; set; } = 0.50;
+        public string FormattedCompositionSummary { get; set; } = string.Empty;
+
         public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
     }
 
@@ -231,6 +268,7 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
     /// <summary>
     /// Governed Strategic Recommendation resulting from external intelligence.
     /// INVARIANT: Terminates at recommendation. DOES NOT execute real-world side effects.
+    /// INVARIANT: ApprovedForExperiment != ApprovedForExecution. Execution authority belongs strictly to Batch 6.
     /// </summary>
     public class StrategicRecommendation : Entity
     {
@@ -245,14 +283,16 @@ namespace BusinessModelApp.Core.Domain.ExternalReality
         public string PrimaryHypothesis { get; set; } = string.Empty;
         public string AlternativeHypothesesJson { get; set; } = "[]";
         public string WhyNotAnalysis { get; set; } = string.Empty;
+        public int IndependentEvidenceCount { get; set; } = 1;
 
         // Commercial Evaluation
         public double CommercialScore { get; set; } = 0.70;
         public string ScenarioMatrixJson { get; set; } = "[]";
         public string SensitivityAnalysisJson { get; set; } = "[]";
 
-        // Epistemic Bounds
+        // Epistemic Bounds & Uncertainty Propagation
         public double ContaminationRisk { get; set; } = 0.10;
+        public double SimulationSpreadRatio { get; set; } = 1.0;
         public string UncertaintyBudgetImpactSummary { get; set; } = string.Empty;
         public decimal ExpectedValueINR { get; set; } = 0m;
         public decimal DownsideRiskINR { get; set; } = 0m;
