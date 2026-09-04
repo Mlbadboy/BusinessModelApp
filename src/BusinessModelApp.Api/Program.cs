@@ -10,6 +10,7 @@ using BusinessModelApp.Core.Services;
 using BusinessModelApp.Infrastructure.Data;
 using BusinessModelApp.Infrastructure.Interceptors;
 using BusinessModelApp.Infrastructure.Repositories;
+using BusinessModelApp.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
@@ -162,6 +163,47 @@ builder.Services.AddScoped<BusinessModelApp.Infrastructure.Services.IBudgetReser
 builder.Services.AddScoped<BusinessModelApp.Core.AI.Governance.IApprovalService, BusinessModelApp.Infrastructure.Services.ApprovalService>();
 builder.Services.AddScoped<BusinessModelApp.Core.AI.IAIInferenceGateway, BusinessModelApp.Api.Services.AIInferenceGateway>();
 builder.Services.AddScoped<BusinessModelApp.Core.Services.IAIROIService, BusinessModelApp.Core.Services.AIROIService>();
+
+// 8.5 Register Governed Voice Telephony Services
+builder.Services.Configure<BusinessModelApp.Infrastructure.Options.VoiceOptions>(
+    builder.Configuration.GetSection(BusinessModelApp.Infrastructure.Options.VoiceOptions.SectionName));
+builder.Services.AddVoiceTelephonyServices();
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.IToolExecutionAdapter, BusinessModelApp.Core.Agents.VoiceCallAdapter>();
+
+// 8.6 Register Charlie Connect Integration Control Plane & Credential Vault
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IConnectorVaultService, BusinessModelApp.Infrastructure.Services.ConnectorVaultService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IConnectorCapabilityService, BusinessModelApp.Infrastructure.Services.ConnectorCapabilityService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IConnectorHealthService, BusinessModelApp.Infrastructure.Services.ConnectorHealthService>();
+
+// 8.7 Register Real Autonomous Prospect Discovery & ICP Scoring Engine
+builder.Services.AddScoped<BusinessModelApp.Core.Prospecting.ICompanyIntelligenceProvider, BusinessModelApp.Infrastructure.Prospecting.CompanyIntelligenceProvider>();
+builder.Services.AddScoped<BusinessModelApp.Core.Prospecting.IICPScoringEngine, BusinessModelApp.Infrastructure.Prospecting.ICPScoringEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Prospecting.IDecisionMakerDiscoveryProvider, BusinessModelApp.Infrastructure.Prospecting.DecisionMakerDiscoveryProvider>();
+builder.Services.AddScoped<BusinessModelApp.Core.Prospecting.IProspectDiscoveryService, BusinessModelApp.Infrastructure.Prospecting.ProspectDiscoveryService>();
+
+// 8.8 Register Charlie OS v5 Reality & Truth Engine (NO EVIDENCE => NO FACT)
+builder.Services.AddScoped<BusinessModelApp.Core.Reality.IRealityEngine, BusinessModelApp.Infrastructure.Reality.RealityEngine>();
+
+// 8.9 Register Charlie OS v5 Phase 1 World Model, Objective & Strategy Intelligence
+builder.Services.AddScoped<BusinessModelApp.Core.WorldModel.ICompanyWorldModel, BusinessModelApp.Infrastructure.WorldModel.CompanyWorldModel>();
+builder.Services.AddScoped<BusinessModelApp.Core.Objectives.IObjectiveEngine, BusinessModelApp.Infrastructure.Objectives.ObjectiveEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IStrategyEngine, BusinessModelApp.Infrastructure.Strategy.StrategyEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Constitution.ICompanyConstitutionService, BusinessModelApp.Infrastructure.Constitution.CompanyConstitutionService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Decisions.IDecisionEngine, BusinessModelApp.Infrastructure.Decisions.DecisionEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Missions.IDurableMissionOrchestrator, BusinessModelApp.Infrastructure.Missions.DurableMissionOrchestrator>();
+
+// Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
+builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();
+builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IAIStrategySimulator, BusinessModelApp.Infrastructure.Strategy.AIStrategySimulator>();
+builder.Services.AddScoped<BusinessModelApp.Core.Constitution.IConstitutionPolicyEngine, BusinessModelApp.Core.Constitution.ConstitutionPolicyEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Strategy.ICommercialStrategyEngine, BusinessModelApp.Infrastructure.Strategy.CommercialStrategyEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.AgentPolicyEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.IAgentRuntime, BusinessModelApp.Core.Agents.AgentRuntime>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IAgentMessageBus, BusinessModelApp.Core.Agents.InMemoryAgentMessageBus>();
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.AgentHeartbeatService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Agents.AgentRecoveryService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Services.ICharlieExecutiveService, BusinessModelApp.Infrastructure.Services.CharlieExecutiveService>();
 
 // Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();

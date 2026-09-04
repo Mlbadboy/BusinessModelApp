@@ -16,7 +16,8 @@ const AIControlCenter = lazy(() => import('./pages/AIControlCenter'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Revenue = lazy(() => import('./pages/Revenue'));
 const Expenses = lazy(() => import('./pages/Expenses'));
-const Strategy = lazy(() => import('./pages/Strategy'));
+const ExecutiveCore = lazy(() => import('./pages/ExecutiveCore'));
+const Connect = lazy(() => import('./pages/Connect'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -131,7 +132,25 @@ export const Router = () => {
             path="/strategy/*"
             element={
               <ProtectedRoute>
-                <Strategy />
+                <ExecutiveCore />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/executive-core"
+            element={
+              <ProtectedRoute>
+                <ExecutiveCore />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/connect"
+            element={
+              <ProtectedRoute>
+                <Connect />
               </ProtectedRoute>
             }
           />
