@@ -51,6 +51,14 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.Domain.Learning.LearningInfluenceRecord> LearningInfluenceRecords { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.Learning.LearningReversalNotice> LearningReversalNotices { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.Learning.UncertaintyBudget> UncertaintyBudgets { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.ExternalSourceRegistryEntry> ExternalSources { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.ExternalEvidenceRecord> ExternalEvidences { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.SignalCluster> SignalClusters { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.ExternalSignal> ExternalSignals { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.CompetitorProfile> CompetitorProfiles { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.MarketOpportunity> MarketOpportunities { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.MarketThreat> MarketThreats { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.ExternalReality.StrategicRecommendation> StrategicRecommendations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -532,6 +540,90 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.CalculationVersion).HasMaxLength(50);
                 entity.HasIndex(e => new { e.WorkspaceId, e.CalculatedAt });
+            });
+
+            // ExternalSourceRegistryEntry
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.ExternalSourceRegistryEntry>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.CanonicalDomain).IsRequired().HasMaxLength(255);
+                entity.HasIndex(e => new { e.WorkspaceId, e.CanonicalDomain });
+            });
+
+            // ExternalEvidenceRecord
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.ExternalEvidenceRecord>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+                entity.Property(e => e.CanonicalUri).HasMaxLength(500);
+                entity.Property(e => e.ContentHash).HasMaxLength(64);
+                entity.Property(e => e.ClaimHash).HasMaxLength(64);
+                entity.HasIndex(e => new { e.WorkspaceId, e.ClaimHash });
+                entity.HasIndex(e => new { e.WorkspaceId, e.SourceId });
+            });
+
+            // SignalCluster
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.SignalCluster>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ClaimHash).IsRequired().HasMaxLength(64);
+                entity.Ignore(e => e.EvidenceIds);
+                entity.Ignore(e => e.SourceIds);
+                entity.HasIndex(e => new { e.WorkspaceId, e.ClaimHash });
+            });
+
+            // ExternalSignal
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.ExternalSignal>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+                entity.Property(e => e.EntityName).HasMaxLength(200);
+                entity.Ignore(e => e.EvidenceIds);
+                entity.Ignore(e => e.SourceIds);
+                entity.HasIndex(e => new { e.WorkspaceId, e.SignalType });
+                entity.HasIndex(e => new { e.WorkspaceId, e.Priority });
+            });
+
+            // CompetitorProfile
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.CompetitorProfile>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CompetitorName).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.Domain).HasMaxLength(255);
+                entity.HasIndex(e => new { e.WorkspaceId, e.CompetitorName });
+            });
+
+            // MarketOpportunity
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.MarketOpportunity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+                entity.Property(e => e.RevenuePotentialINR).HasPrecision(18, 2);
+                entity.Property(e => e.MarginPotentialPercent).HasPrecision(5, 2);
+                entity.Ignore(e => e.OriginSignalIds);
+                entity.Ignore(e => e.EvidenceIds);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Status });
+            });
+
+            // MarketThreat
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.MarketThreat>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Title).IsRequired().HasMaxLength(300);
+                entity.Ignore(e => e.EvidenceIds);
+                entity.Ignore(e => e.OriginSignalIds);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Category });
+            });
+
+            // StrategicRecommendation
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.ExternalReality.StrategicRecommendation>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Summary).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.ExpectedValueINR).HasPrecision(18, 2);
+                entity.Property(e => e.DownsideRiskINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.OpportunityId });
             });
         }
     }

@@ -43,6 +43,7 @@ import Logout from '@mui/icons-material/Logout';
 import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import PowerSettingsNew from '@mui/icons-material/PowerSettingsNew';
 import Cable from '@mui/icons-material/Cable';
+import Radar from '@mui/icons-material/Radar';
 import { useAuth } from '../../hooks/useAuth';
 import { CommandBarModal } from '../command/CommandBarModal';
 import { useAIControlCenter } from '../../hooks/useAIControlCenter';
@@ -131,6 +132,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     {
       title: 'INTELLIGENCE',
       items: [
+        { text: 'Market Radar', icon: <Radar />, path: '/market-radar' },
         { text: 'Business Brain', icon: <Psychology />, path: '/business-brain' },
         { text: 'Business Health', icon: <Analytics />, path: '/analytics' },
         { text: 'Executive Core', icon: <Lightbulb />, path: '/strategy' },

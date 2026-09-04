@@ -46,7 +46,9 @@ namespace BusinessModelApp.Infrastructure.Interceptors
                     entry.Entity is CorrectionRecord ||
                     entry.Entity is LearningEpisode ||
                     entry.Entity is LearningReversalNotice ||
-                    entry.Entity is LearningInfluenceRecord)
+                    entry.Entity is LearningInfluenceRecord ||
+                    entry.Entity is BusinessModelApp.Core.Domain.ExternalReality.ExternalEvidenceRecord ||
+                    entry.Entity is BusinessModelApp.Core.Domain.ExternalReality.StrategicRecommendation)
                 {
                     if (entry.State == EntityState.Modified)
                     {

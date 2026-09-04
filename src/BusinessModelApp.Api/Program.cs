@@ -215,6 +215,12 @@ builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IInstitutionalLearni
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ICounterfactualEngine, BusinessModelApp.Infrastructure.Learning.CounterfactualEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ILearningBenchmarkLab, BusinessModelApp.Infrastructure.Learning.LearningBenchmarkLabService>();
 
+// Phase 2 Batch 4: External Reality Fabric, Market Radar & Opportunity Intelligence
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IExternalSourceRegistry, BusinessModelApp.Infrastructure.ExternalReality.ExternalSourceRegistry>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IMarketRadarService, BusinessModelApp.Infrastructure.ExternalReality.MarketRadarService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IOpportunityIntelligenceService, BusinessModelApp.Infrastructure.ExternalReality.OpportunityIntelligenceService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IThreatIntelligenceService, BusinessModelApp.Infrastructure.ExternalReality.OpportunityIntelligenceService>();
+
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();
