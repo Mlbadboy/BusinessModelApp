@@ -218,6 +218,16 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IHierarchicalWalletMa
 builder.Services.AddSingleton<BusinessModelApp.Core.Domain.Missions.IMissionEventStore, BusinessModelApp.Infrastructure.Missions.EventSourcedMissionStore>();
 builder.Services.AddScoped<BusinessModelApp.Core.Domain.Missions.IMissionForkEngine, BusinessModelApp.Infrastructure.Missions.MissionForkEngine>();
 
+// Phase 1.5 v1.3.1 Production Hardening Services (Batch 3: H8 - H12)
+builder.Services.AddSingleton<BusinessModelApp.Core.Constitution.IPolicyEngineV2, BusinessModelApp.Infrastructure.Constitution.PolicyEngineV2>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IPromptRegistry, BusinessModelApp.Infrastructure.AI.PromptRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IJsonSchemaValidator, BusinessModelApp.Infrastructure.AI.JsonSchemaValidator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IAIEvaluationEngine, BusinessModelApp.Infrastructure.AI.AIEvaluationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.AI.IModelTournament, BusinessModelApp.Infrastructure.AI.ModelTournament>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Security.ITenantContextAccessor, BusinessModelApp.Infrastructure.Security.TenantContextAccessor>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Security.ITenantIsolationGuard, BusinessModelApp.Infrastructure.Security.TenantIsolationGuard>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Security.ISecretBroker, BusinessModelApp.Infrastructure.Security.SecretBroker>();
+
 // Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
