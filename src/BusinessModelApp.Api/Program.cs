@@ -228,6 +228,13 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Security.ITenantContextAcces
 builder.Services.AddSingleton<BusinessModelApp.Core.Security.ITenantIsolationGuard, BusinessModelApp.Infrastructure.Security.TenantIsolationGuard>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Security.ISecretBroker, BusinessModelApp.Infrastructure.Security.SecretBroker>();
 
+// Phase 1.5 v1.3.1 Production Hardening Services (Batch 4: H13 - H16 & Learning Loop)
+builder.Services.AddSingleton<BusinessModelApp.Core.Connectors.ICapabilityRegistry, BusinessModelApp.Infrastructure.Connectors.CapabilityRegistryService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Observability.ICausalTracer, BusinessModelApp.Infrastructure.Observability.CausalTracer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Constitution.IKillSwitchManager, BusinessModelApp.Infrastructure.Constitution.KillSwitchManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IAutonomyManager, BusinessModelApp.Infrastructure.Agents.AutonomyManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IGovernedLearningLoop, BusinessModelApp.Infrastructure.Agents.GovernedLearningLoop>();
+
 // Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
