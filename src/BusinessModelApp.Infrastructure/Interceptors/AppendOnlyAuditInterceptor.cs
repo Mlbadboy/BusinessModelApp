@@ -38,7 +38,8 @@ namespace BusinessModelApp.Infrastructure.Interceptors
                     entry.Entity is DecisionRecord ||
                     entry.Entity is BusinessModelApp.Core.Domain.Reality.EvidenceRecord ||
                     entry.Entity is BusinessModelApp.Core.Domain.Commercial.EvidenceRecord ||
-                    entry.Entity is DurableMissionCheckpoint)
+                    entry.Entity is DurableMissionCheckpoint ||
+                    entry.Entity is BusinessModelApp.Core.Domain.DigitalTwin.DigitalTwinSnapshot)
                 {
                     if (entry.State == EntityState.Modified)
                     {

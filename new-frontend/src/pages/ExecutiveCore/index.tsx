@@ -29,6 +29,7 @@ import ScienceIcon from '@mui/icons-material/Science';
 import GavelIcon from '@mui/icons-material/Gavel';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import GroupsIcon from '@mui/icons-material/Groups';
+import { DigitalTwinExplorer } from '../../components/DigitalTwin/DigitalTwinExplorer';
 
 interface StrategicAssumption {
   key: string;
@@ -333,7 +334,7 @@ export const ExecutiveCore: React.FC = () => {
           scrollButtons="auto"
           sx={{ '& .MuiTab-root': { fontWeight: 700, textTransform: 'none', py: 1.5 } }}
         >
-          <Tab icon={<PublicIcon fontSize="small" />} iconPosition="start" label="1. Company World" />
+          <Tab icon={<PublicIcon fontSize="small" />} iconPosition="start" label="1. Company Digital Twin" />
           <Tab icon={<AccountBalanceIcon fontSize="small" />} iconPosition="start" label="2. Revenue Reality" />
           <Tab icon={<ScienceIcon fontSize="small" />} iconPosition="start" label="3. Strategy Lab" />
           <Tab icon={<GavelIcon fontSize="small" />} iconPosition="start" label="4. Decision Trace" />
@@ -342,108 +343,11 @@ export const ExecutiveCore: React.FC = () => {
         </Tabs>
       </Paper>
 
-      {/* SCREEN 1: COMPANY WORLD */}
+      {/* SCREEN 1: COMPANY DIGITAL TWIN */}
       {activeTab === 0 && (
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ height: '100%', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', mb: 2 }}>
-                  Financial Reality
-                </Typography>
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Cash in Bank</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatINR(snapshot?.financial?.cashInBankINR?.value || snapshot?.verifiedSettledCashINR?.value || 0)}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Monthly Burn</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatINR(snapshot?.financial?.monthlyBurnINR?.value || 350000)}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Runway</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>{snapshot?.financial?.runwayDays?.value || 180} Days</Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ height: '100%', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', mb: 2 }}>
-                  Commercial Reality
-                </Typography>
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Active Pipeline</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>{formatINR(snapshot?.activePipelineINR?.value || 0)}</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Historical Win Rate</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>25.0%</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Average ACV</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>{formatINR(2500000)}</Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ height: '100%', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', mb: 2 }}>
-                  Delivery Reality
-                </Typography>
-                <Stack spacing={1.5}>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Available Delivery Slots</Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 800, color: '#059669' }}>
-                      {snapshot?.availableDeliverySlots?.value ?? 4} / 6 Slots
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Team Utilization</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>65.0%</Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="textSecondary">Engineers</Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 700 }}>5 Full-Time Engineers</Typography>
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Card sx={{ height: '100%', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e293b', mb: 2 }}>
-                  Connector Reality
-                </Typography>
-                <Stack spacing={1}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption">Razorpay Gateway</Typography>
-                    <Chip label="CONNECTED" color="success" size="small" sx={{ fontSize: '0.65rem' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption">HubSpot CRM</Typography>
-                    <Chip label="CONNECTED" color="success" size="small" sx={{ fontSize: '0.65rem' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption">Google Workspace</Typography>
-                    <Chip label="CONNECTED" color="success" size="small" sx={{ fontSize: '0.65rem' }} />
-                  </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="caption">Bank Feed</Typography>
-                    <Chip label="DEGRADED" color="warning" size="small" sx={{ fontSize: '0.65rem' }} />
-                  </Box>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+        <Box sx={{ width: '100%' }}>
+          <DigitalTwinExplorer />
+        </Box>
       )}
 
       {/* SCREEN 2: REVENUE REALITY */}

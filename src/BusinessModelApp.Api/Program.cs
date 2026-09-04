@@ -210,6 +210,7 @@ builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IStrategyEngine, Busin
 builder.Services.AddScoped<BusinessModelApp.Core.Constitution.ICompanyConstitutionService, BusinessModelApp.Infrastructure.Constitution.CompanyConstitutionService>();
 builder.Services.AddScoped<BusinessModelApp.Core.Decisions.IDecisionEngine, BusinessModelApp.Infrastructure.Decisions.DecisionEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Missions.IDurableMissionOrchestrator, BusinessModelApp.Infrastructure.Missions.DurableMissionOrchestrator>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ICompanyDigitalTwinService, BusinessModelApp.Infrastructure.DigitalTwin.CompanyDigitalTwinService>();
 
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
