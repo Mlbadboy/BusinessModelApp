@@ -44,6 +44,9 @@ import AutoAwesome from '@mui/icons-material/AutoAwesome';
 import PowerSettingsNew from '@mui/icons-material/PowerSettingsNew';
 import Cable from '@mui/icons-material/Cable';
 import Radar from '@mui/icons-material/Radar';
+import GavelRounded from '@mui/icons-material/GavelRounded';
+import SecurityOutlined from '@mui/icons-material/SecurityOutlined';
+import PsychologyAlt from '@mui/icons-material/PsychologyAlt';
 import { useAuth } from '../../hooks/useAuth';
 import { CommandBarModal } from '../command/CommandBarModal';
 import { useAIControlCenter } from '../../hooks/useAIControlCenter';
@@ -143,8 +146,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [{ text: 'Charlie Connect', icon: <Cable />, path: '/connect' }],
     },
     {
+      title: 'SECURITY',
+      items: [{ text: 'Security Center', icon: <SecurityOutlined />, path: '/security' }],
+    },
+    {
+      title: 'EXECUTION',
+      items: [{ text: 'Execution Center', icon: <GavelRounded />, path: '/execution' }],
+    },
+    {
       title: 'AI SYSTEM',
-      items: [{ text: 'AI Control Center', icon: <Tune />, path: '/ai-control-center' }],
+      items: [
+        { text: 'AI Control Center', icon: <Tune />, path: '/ai-control-center' },
+        { text: 'AI Brain Fabric', icon: <PsychologyAlt />, path: '/settings/ai-brain' },
+      ],
     },
   ];
 

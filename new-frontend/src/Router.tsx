@@ -20,6 +20,8 @@ const ExecutiveCore = lazy(() => import('./pages/ExecutiveCore'));
 const Connect = lazy(() => import('./pages/Connect'));
 const MarketRadar = lazy(() => import('./pages/MarketRadar'));
 const SecurityCommandCenter = lazy(() => import('./pages/SecurityCommandCenter'));
+const ExecutionCommandCenter = lazy(() => import('./pages/ExecutionCommandCenter'));
+const AIBrainSettings = lazy(() => import('./pages/Settings/AIBrainSettings'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -171,6 +173,24 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <SecurityCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/execution"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/ai-brain"
+            element={
+              <ProtectedRoute>
+                <AIBrainSettings />
               </ProtectedRoute>
             }
           />

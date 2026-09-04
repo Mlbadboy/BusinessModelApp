@@ -227,6 +227,19 @@ builder.Services.AddScoped<BusinessModelApp.Infrastructure.Security.RedTeamAuton
 builder.Services.AddScoped<BusinessModelApp.Infrastructure.Security.BlueTeamRemediationEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ISecurityCommandCenterService, BusinessModelApp.Infrastructure.Security.SecurityCommandCenterService>();
 
+// Phase 2 Batch 6: Governed Autonomous Execution & Consequential Action Firewall
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IRiskEngine, BusinessModelApp.Infrastructure.Execution.DeterministicRiskEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IBrainFabricGovernanceService, BusinessModelApp.Infrastructure.Execution.BrainFabricGovernanceService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IAuthorityDelegationService, BusinessModelApp.Infrastructure.Execution.AuthorityDelegationService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IBudgetGuardService, BusinessModelApp.Infrastructure.Execution.BudgetGuardService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IApprovalGateway, BusinessModelApp.Infrastructure.Execution.ApprovalGateway>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IExecutionLedgerService, BusinessModelApp.Infrastructure.Execution.ExecutionLedgerService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IExecutionKillSwitchService, BusinessModelApp.Infrastructure.Execution.HierarchicalExecutionKillSwitch>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IConnectorExecutionGateway, BusinessModelApp.Infrastructure.Execution.ConnectorExecutionGateway>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IExecutionFirewall, BusinessModelApp.Infrastructure.Execution.ExecutionFirewallService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ISagaExecutionEngine, BusinessModelApp.Infrastructure.Execution.SagaExecutionEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IAutonomousMissionExecutor, BusinessModelApp.Infrastructure.Execution.AutonomousMissionExecutor>();
+
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();

@@ -64,6 +64,16 @@ namespace BusinessModelApp.Infrastructure.Data
         public DbSet<BusinessModelApp.Core.Domain.Security.VulnerabilityFinding> VulnerabilityFindings { get; set; }
         public DbSet<BusinessModelApp.Core.Domain.Security.BlueTeamRemediation> BlueTeamRemediations { get; set; }
 
+        // Phase 2 Batch 6: Governed Autonomous Execution & Consequential Action Firewall
+        public DbSet<BusinessModelApp.Core.Domain.Execution.ExecutionLedgerEntry> ExecutionLedgerEntries { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.BrainProviderConfigEntity> BrainProviderConfigs { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.AuthorityDelegationEntity> AuthorityDelegations { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.TenantWalletEntity> TenantWallets { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.BudgetReservationEntity> BudgetReservations { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.ExecutionApprovalRequestEntity> ExecutionApprovalRequests { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.SagaExecutionStateEntity> SagaExecutionStates { get; set; }
+        public DbSet<BusinessModelApp.Core.Domain.Execution.ExecutionKillSwitchEntity> ExecutionKillSwitches { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -628,6 +638,71 @@ namespace BusinessModelApp.Infrastructure.Data
                 entity.Property(e => e.ExpectedValueINR).HasPrecision(18, 2);
                 entity.Property(e => e.DownsideRiskINR).HasPrecision(18, 2);
                 entity.HasIndex(e => new { e.WorkspaceId, e.OpportunityId });
+            });
+
+            // Phase 2 Batch 6: Execution Entities
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.ExecutionLedgerEntry>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.MonetaryImpactINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.IdempotencyKey }).IsUnique();
+                entity.HasIndex(e => new { e.WorkspaceId, e.ExecutedAtUtc });
+                entity.HasIndex(e => e.MissionId);
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.BrainProviderConfigEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalSpendUSD).HasPrecision(18, 4);
+                entity.Property(e => e.TotalSpendINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Provider }).IsUnique();
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.AuthorityDelegationEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DailySpendLimitINR).HasPrecision(18, 2);
+                entity.Property(e => e.PerTransactionLimitINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.AgentId });
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.TenantWalletEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BalanceINR).HasPrecision(18, 2);
+                entity.Property(e => e.AllocatedBudgetINR).HasPrecision(18, 2);
+                entity.Property(e => e.PendingCommitmentsINR).HasPrecision(18, 2);
+                entity.Property(e => e.DailyCapINR).HasPrecision(18, 2);
+                entity.Property(e => e.TodaySpendINR).HasPrecision(18, 2);
+                entity.HasIndex(e => e.WorkspaceId).IsUnique();
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.BudgetReservationEntity>(entity =>
+            {
+                entity.HasKey(e => e.ReservationId);
+                entity.Property(e => e.AmountINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.RequestId });
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.ExecutionApprovalRequestEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.MonetaryImpactINR).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.WorkspaceId, e.Status });
+                entity.HasIndex(e => e.RequestId);
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.SagaExecutionStateEntity>(entity =>
+            {
+                entity.HasKey(e => e.SagaId);
+                entity.HasIndex(e => new { e.WorkspaceId, e.MissionId });
+            });
+
+            modelBuilder.Entity<BusinessModelApp.Core.Domain.Execution.ExecutionKillSwitchEntity>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => new { e.Tier, e.IsActive });
+                entity.HasIndex(e => new { e.WorkspaceId, e.IsActive });
             });
         }
     }
