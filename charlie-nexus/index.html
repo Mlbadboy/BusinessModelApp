@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHARLIE // NEXUS — Autonomous Business Command Interface</title>
+  <meta name="description" content="High-complexity sci-fi command interface for Charlie Autonomous Business Operating System. Real-time Digital Twin, Mission Graph Runtime, and Business Constraint Sovereignty.">
+
+  <!-- Google Fonts: Orbitron, Space Mono, JetBrains Mono, Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Orbitron:wght@400;600;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Three.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-omega" data-regime="PriceWar" data-active-domain="strategy">
+  <!-- Audio Context Indicator / SFX Toggle -->
+  <div class="audio-toggle-wrapper">
+    <button id="sfx-toggle" class="tactical-btn sfx-btn" title="Toggle Synthesized Audio Feedback">
+      <span class="btn-corner top-left"></span>
+      <span class="btn-corner bottom-right"></span>
+      <span class="sfx-icon">🔊</span>
+      <span class="sfx-label">SFX: ACTIVE</span>
+    </button>
+  </div>
+
+  <!-- Ambient CRT Scanline Overlay -->
+  <div class="crt-scanline-overlay"></div>
+  <div class="vignette-overlay"></div>
+
+  <!-- Peripheral Particle Background Canvas -->
+  <canvas id="peripheral-particles"></canvas>
+
+  <!-- Main HUD Application Shell -->
+  <div class="nexus-app-container">
+
+    <!-- ================================================================= -->
+    <!-- 1. TOP COMMAND HEADER -->
+    <!-- ================================================================= -->
+    <header class="nexus-header" id="command-header">
+      <div class="header-clip-bg"></div>
+
+      <!-- Header Left: Branding & OS Identifier -->
+      <div class="header-left">
+        <div class="brand-crest">
+          <div class="crest-poly">
+            <span class="crest-core"></span>
+          </div>
+          <div class="brand-titles">
+            <div class="brand-sub">PROCOL-OS // VER 3.5.8</div>
+            <h1 class="brand-main">CHARLIE <span class="brand-accent">// NEXUS</span></h1>
+            <div class="brand-tag">AUTONOMOUS BUSINESS OPERATING SYSTEM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Center: Real-time System Telemetry & Status -->
+      <div class="header-center">
+        <div class="status-pod">
+          <div class="status-indicator">
+            <span class="indicator-beacon"></span>
+            <span class="indicator-ring"></span>
+          </div>
+          <div class="status-content">
+            <div class="status-label">CORE TELEMETRY</div>
+            <div class="status-value">SYSTEM ONLINE // LEVEL 3 AUTONOMOUS</div>
+          </div>
+        </div>
+
+        <div class="status-divider"></div>
+
+        <div class="regime-badge" id="header-regime-badge" title="Active Strategic Regime under Invariant I15-B">
+          <div class="badge-label">ACTIVE STRATEGIC REGIME</div>
+          <div class="badge-value text-magenta">MARKET DEFENSE: PRICE WAR</div>
+        </div>
+      </div>
+
+      <!-- Header Right: User, Local Time & Execution Firewall State -->
+      <div class="header-right">
+        <div class="telemetry-pill">
+          <span class="pill-label">QUANTUM-SYNC</span>
+          <span class="pill-val text-cyan">12ms</span>
+        </div>
+
+        <div class="telemetry-pill firewall-pill" title="Batch 6 Execution Firewall Status">
+          <span class="firewall-dot"></span>
+          <span class="pill-label">FIREWALL</span>
+          <span class="pill-val text-green">LOCKED</span>
+        </div>
+
+        <div class="clock-display" id="system-clock">
+          <span class="clock-time">17:04:28</span>
+          <span class="clock-zone">UTC+05:30</span>
+        </div>
+
+        <div class="commander-tag">
+          <div class="avatar-ring">
+            <span class="avatar-initials">CMD</span>
+          </div>
+          <div class="commander-info">
+            <span class="cmdr-title">SOVEREIGN ROOT</span>
+            <span class="cmdr-auth text-cyan">AUTH: ARCHITECT</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+
+    <!-- ================================================================= -->
+    <!-- 2. MAIN TACTICAL COMMAND STAGE -->
+    <!-- ================================================================= -->
+    <main class="nexus-stage">
+
+      <!-- LEFT SIDEBAR: Epistemic Reasoning & Business Constraint HUD -->
+      <aside class="stage-sidebar left-sidebar">
+
+        <!-- Panel A: WHY CHARLIE ACTED (Epistemic HUD) -->
+        <section class="tactical-panel epistemic-panel">
+          <div class="panel-header">
+            <div class="header-title-wrap">
+              <span class="corner-bracket"></span>
+              <span class="panel-title">WHY CHARLIE ACTED</span>
+              <span class="panel-code">EPISTEMIC-HUD</span>
+            </div>
+            <span class="status-chip chip-green">GROUNDED</span>
+          </div>
+
+          <div class="panel-body epistemic-body">
+            <div class="reason-row">
+              <div class="reason-field">TRIGGER</div>
+              <div class="reason-val text-warning">Revenue velocity drop (-11.4%) detected</div>
+            </div>
+            <div class="reason-row">
+              <div class="reason-field">EVIDENCE</div>
+              <div class="reason-val text-cyan">7 verified Digital Twin signals (Ledger TX #9941)</div>
+            </div>
+            <div class="reason-row">
+              <div class="reason-field">RESPONSIBILITY</div>
+              <div class="reason-val text-white">Investigate enterprise churn &amp; compress CAC</div>
+            </div>
+            <div class="reason-row">
+              <div class="reason-field">CONSTRAINT STATUS</div>
+              <div class="reason-val text-green">✓ Liquidity SAFE &bull; ✓ Margin SAFE</div>
+            </div>
+            <div class="reason-row">
+              <div class="reason-field">STRATEGIC REGIME</div>
+              <div class="reason-val text-magenta">MarketDefense_PriceWar &bull; Retention Rank #1</div>
+            </div>
+            <div class="reason-row highlight-row">
+              <div class="reason-field">DECISION</div>
+              <div class="reason-val text-cyan font-bold">Autonomous Recovery Mission Admitted (₹75K Allocated)</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Panel B: BUSINESS CONSTRAINT MANIFOLD (Batch 3.5 HUD) -->
+        <section class="tactical-panel constraints-panel">
+          <div class="panel-header">
+            <div class="header-title-wrap">
+              <span class="corner-bracket"></span>
+              <span class="panel-title">BUSINESS CONSTRAINTS</span>
+              <span class="panel-code">I15 SOVEREIGN HUD</span>
+            </div>
+            <span class="status-chip chip-cyan">FAIL-CLOSED</span>
+          </div>
+
+          <div class="panel-body constraints-body">
+            <!-- Constraint Item 1: Liquidity -->
+            <div class="constraint-item">
+              <div class="constraint-meta">
+                <span class="c-title">LIQUIDITY RESERVE (₹10L FLOOR)</span>
+                <span class="c-badge badge-safe">SAFE (₹12L)</span>
+              </div>
+              <div class="segmented-bar">
+                <span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span>
+                <span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg active cyan"></span><span class="seg inactive"></span>
+              </div>
+            </div>
+
+            <!-- Constraint Item 2: Gross Margin -->
+            <div class="constraint-item">
+              <div class="constraint-meta">
+                <span class="c-title">GROSS MARGIN (25% FLOOR)</span>
+                <span class="c-badge badge-safe">SAFE (28.4%)</span>
+              </div>
+              <div class="segmented-bar">
+                <span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span>
+                <span class="seg active green"></span><span class="seg active green"></span><span class="seg active green"></span><span class="seg inactive"></span><span class="seg inactive"></span>
+              </div>
+            </div>
+
+            <!-- Constraint Item 3: CAC Ceiling -->
+            <div class="constraint-item warning-item">
+              <div class="constraint-meta">
+                <span class="c-title">CAC CEILING (₹2,500)</span>
+                <span class="c-badge badge-warning">WARNING (₹2,380)</span>
+              </div>
+              <div class="segmented-bar">
+                <span class="seg active amber"></span><span class="seg active amber"></span><span class="seg active amber"></span><span class="seg active amber"></span><span class="seg active amber"></span>
+                <span class="seg active amber"></span><span class="seg active amber"></span><span class="seg active amber"></span><span class="seg active amber"></span><span class="seg inactive"></span>
+              </div>
+            </div>
+
+            <!-- Constraint Item 4: Human Approvals -->
+            <div class="constraint-item">
+              <div class="constraint-meta">
+                <span class="c-title">HUMAN APPROVAL CAPACITY</span>
+                <span class="c-badge badge-constrained">CONSTRAINED (9/10)</span>
+              </div>
+              <div class="segmented-bar">
+                <span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg active magenta"></span>
+                <span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg active magenta"></span><span class="seg inactive"></span>
+              </div>
+            </div>
+
+            <!-- Constraint Item 5: Concurrency -->
+            <div class="constraint-item">
+              <div class="constraint-meta">
+                <span class="c-title">AUTONOMOUS MISSION FLEET</span>
+                <span class="c-badge badge-safe">SAFE (18/20)</span>
+              </div>
+              <div class="segmented-bar">
+                <span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg active cyan"></span>
+                <span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg active cyan"></span><span class="seg inactive"></span>
+              </div>
+            </div>
+
+            <div class="constraint-note">
+              <span class="note-icon">⚡</span>
+              <span>Invariant I15-D: Hard constraints cannot be optimized away by reputation or revenue utility.</span>
+            </div>
+          </div>
+        </section>
+
+      </aside>
+
+
+      <!-- CENTER STAGE: 3D HOLOGRAPHIC CORE & LIVE GAUGES -->
+      <section class="stage-center">
+
+        <!-- 3D Hologram Container with Canvas & Ambient Cyber Ring -->
+        <div class="hologram-viewport" id="hologram-viewport">
+          <!-- WebGL Three.js Target Canvas -->
+          <canvas id="core-webgl-canvas"></canvas>
+
+          <!-- Holographic Floating Ring HUD overlays -->
+          <div class="holo-reticle-ring holo-outer"></div>
+          <div class="holo-reticle-ring holo-mid"></div>
+          <div class="holo-reticle-ring holo-inner"></div>
+          <div class="holo-crosshair crosshair-h"></div>
+          <div class="holo-crosshair crosshair-v"></div>
+
+          <!-- Interactive Center Core Target Button -->
+          <div class="holo-core-trigger" id="core-trigger" title="Click to pulse Digital Twin diagnostic simulation">
+            <div class="core-pulse-circle"></div>
+            <div class="core-text">
+              <div class="core-sup">CHARLIE</div>
+              <div class="core-main" id="core-mode-label">BUSINESS CORE</div>
+              <div class="core-sub" id="core-state-indicator">● LIVE TWIN SYNC</div>
+            </div>
+          </div>
+
+          <!-- Dynamic Holographic Metric Badges (Positioned around 3D core) -->
+          <div class="holo-badge holo-badge-tl" id="holo-metric-tl">
+            <div class="badge-key">BUSINESS HEALTH</div>
+            <div class="badge-val text-cyan">87.4%</div>
+            <div class="badge-sub">STABLE NOMINAL</div>
+          </div>
+
+          <div class="holo-badge holo-badge-tr" id="holo-metric-tr">
+            <div class="badge-key">STRATEGIC ALIGNMENT</div>
+            <div class="badge-val text-magenta">91.2%</div>
+            <div class="badge-sub">PRICE WAR REGIME</div>
+          </div>
+
+          <div class="holo-badge holo-badge-bl" id="holo-metric-bl">
+            <div class="badge-key">REVENUE VELOCITY</div>
+            <div class="badge-val text-green">+12.8%</div>
+            <div class="badge-sub">₹4.82 Cr PIPELINE</div>
+          </div>
+
+          <div class="holo-badge holo-badge-br" id="holo-metric-br">
+            <div class="badge-key">WORKER UTILIZATION</div>
+            <div class="badge-val text-cyan">81.7%</div>
+            <div class="badge-sub">18 MISSIONS ACTIVE</div>
+          </div>
+        </div>
+
+        <!-- Segmented Radial 3D Progress Gauges Section -->
+        <div class="radial-gauges-strip">
+
+          <!-- Gauge 1: Business Health -->
+          <div class="gauge-card" data-gauge-id="health">
+            <div class="gauge-svg-wrap">
+              <svg class="radial-gauge-svg" viewBox="0 0 120 120">
+                <circle class="gauge-bg" cx="60" cy="60" r="48" />
+                <circle class="gauge-bar cyan-bar" id="gauge-bar-health" cx="60" cy="60" r="48" stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+                <circle class="gauge-ticks" cx="60" cy="60" r="54" stroke-dasharray="4 8" />
+              </svg>
+              <div class="gauge-center-readout">
+                <span class="gauge-number" id="num-health">0%</span>
+                <span class="gauge-unit">INDEX</span>
+              </div>
+            </div>
+            <div class="gauge-label">BUSINESS HEALTH</div>
+            <div class="gauge-sublabel text-cyan">DIGITAL TWIN</div>
+          </div>
+
+          <!-- Gauge 2: Tactical Score (Active Dominant) -->
+          <div class="gauge-card dominant-gauge" data-gauge-id="tactical">
+            <div class="gauge-svg-wrap">
+              <svg class="radial-gauge-svg" viewBox="0 0 120 120">
+                <circle class="gauge-bg" cx="60" cy="60" r="48" />
+                <circle class="gauge-bar magenta-bar" id="gauge-bar-tactical" cx="60" cy="60" r="48" stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+                <circle class="gauge-ticks" cx="60" cy="60" r="54" stroke-dasharray="4 8" />
+              </svg>
+              <div class="gauge-center-readout">
+                <span class="gauge-number" id="num-tactical">0%</span>
+                <span class="gauge-unit">TACTICAL</span>
+              </div>
+            </div>
+            <div class="gauge-label">STRATEGY SCORE</div>
+            <div class="gauge-sublabel text-magenta">ACTIVE MODULE</div>
+          </div>
+
+          <!-- Gauge 3: Mission Success Rate -->
+          <div class="gauge-card" data-gauge-id="missions">
+            <div class="gauge-svg-wrap">
+              <svg class="radial-gauge-svg" viewBox="0 0 120 120">
+                <circle class="gauge-bg" cx="60" cy="60" r="48" />
+                <circle class="gauge-bar green-bar" id="gauge-bar-missions" cx="60" cy="60" r="48" stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+                <circle class="gauge-ticks" cx="60" cy="60" r="54" stroke-dasharray="4 8" />
+              </svg>
+              <div class="gauge-center-readout">
+                <span class="gauge-number" id="num-missions">0%</span>
+                <span class="gauge-unit">ADMISSION</span>
+              </div>
+            </div>
+            <div class="gauge-label">MISSION SUCCESS</div>
+            <div class="gauge-sublabel text-green">FLEET LEASES</div>
+          </div>
+
+          <!-- Gauge 4: Security Posture -->
+          <div class="gauge-card" data-gauge-id="security">
+            <div class="gauge-svg-wrap">
+              <svg class="radial-gauge-svg" viewBox="0 0 120 120">
+                <circle class="gauge-bg" cx="60" cy="60" r="48" />
+                <circle class="gauge-bar cyan-bar" id="gauge-bar-security" cx="60" cy="60" r="48" stroke-dasharray="301.59" stroke-dashoffset="301.59" />
+                <circle class="gauge-ticks" cx="60" cy="60" r="54" stroke-dasharray="4 8" />
+              </svg>
+              <div class="gauge-center-readout">
+                <span class="gauge-number" id="num-security">0%</span>
+                <span class="gauge-unit">SHIELD</span>
+              </div>
+            </div>
+            <div class="gauge-label">SECURITY POSTURE</div>
+            <div class="gauge-sublabel text-cyan">STRIX DEFENSE</div>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- RIGHT SIDEBAR: Tactical 2x2 Modular Capability Grid & Live Event Stream -->
+      <aside class="stage-sidebar right-sidebar">
+
+        <!-- 2x2 MODULAR CAPABILITY GRID -->
+        <div class="module-grid-2x2">
+
+          <!-- MODULE 01: REVENUE COMMAND -->
+          <article class="tactical-module mod-revenue" id="module-revenue" data-domain="revenue">
+            <div class="mod-glare"></div>
+            <div class="mod-header">
+              <div class="mod-code">DOMAIN 01</div>
+              <div class="mod-tag">COMMERCIAL</div>
+            </div>
+            <div class="mod-icon-wrap">
+              <canvas class="canvas-icon" id="icon-canvas-revenue" width="70" height="70"></canvas>
+            </div>
+            <div class="mod-body">
+              <h3 class="mod-title">REVENUE COMMAND</h3>
+              <div class="mod-metric-primary">
+                <span class="metric-num text-green">+12.8%</span>
+                <span class="metric-caption">VELOCITY</span>
+              </div>
+              <div class="mod-submetrics">
+                <div class="submetric-item">
+                  <span class="sub-key">PIPELINE:</span>
+                  <span class="sub-val text-white">₹4.82 Cr</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">GAP:</span>
+                  <span class="sub-val text-warning">₹38.4 L</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">FORECAST CONF:</span>
+                  <span class="sub-val text-cyan">91.0%</span>
+                </div>
+              </div>
+            </div>
+            <div class="mod-footer">
+              <span class="footer-chip">REVERSE FUNNEL</span>
+              <span class="footer-action">&rarr;</span>
+            </div>
+          </article>
+
+          <!-- MODULE 02: OPERATIONS & FLEET -->
+          <article class="tactical-module mod-operations" id="module-operations" data-domain="operations">
+            <div class="mod-glare"></div>
+            <div class="mod-header">
+              <div class="mod-code">DOMAIN 02</div>
+              <div class="mod-tag">RUNTIME</div>
+            </div>
+            <div class="mod-icon-wrap">
+              <canvas class="canvas-icon" id="icon-canvas-operations" width="70" height="70"></canvas>
+            </div>
+            <div class="mod-body">
+              <h3 class="mod-title">OPERATIONS &amp; FLEET</h3>
+              <div class="mod-metric-primary">
+                <span class="metric-num text-cyan">81.7%</span>
+                <span class="metric-caption">UTILIZATION</span>
+              </div>
+              <div class="mod-submetrics">
+                <div class="submetric-item">
+                  <span class="sub-key">ACTIVE MISSIONS:</span>
+                  <span class="sub-val text-white">18 ACTIVE</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">SUCCESS:</span>
+                  <span class="sub-val text-green">94.2%</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">BOTTLENECKS:</span>
+                  <span class="sub-val text-warning">03 DETECTED</span>
+                </div>
+              </div>
+            </div>
+            <div class="mod-footer">
+              <span class="footer-chip">DAG DISPATCH</span>
+              <span class="footer-action">&rarr;</span>
+            </div>
+          </article>
+
+          <!-- MODULE 03: SECURITY & GOVERNANCE -->
+          <article class="tactical-module mod-security" id="module-security" data-domain="security">
+            <div class="mod-glare"></div>
+            <div class="mod-header">
+              <div class="mod-code">DOMAIN 03</div>
+              <div class="mod-tag">GOVERNANCE</div>
+            </div>
+            <div class="mod-icon-wrap">
+              <canvas class="canvas-icon" id="icon-canvas-security" width="70" height="70"></canvas>
+            </div>
+            <div class="mod-body">
+              <h3 class="mod-title">SECURITY &amp; FIREWALL</h3>
+              <div class="mod-metric-primary">
+                <span class="metric-num text-green">98.7%</span>
+                <span class="metric-caption">POSTURE</span>
+              </div>
+              <div class="mod-submetrics">
+                <div class="submetric-item">
+                  <span class="sub-key">FIREWALL:</span>
+                  <span class="sub-val text-green font-bold">LOCKED (I15)</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">COMPLIANCE:</span>
+                  <span class="sub-val text-white">100% AUDITED</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">THREATS:</span>
+                  <span class="sub-val text-magenta">02 MITIGATED</span>
+                </div>
+              </div>
+            </div>
+            <div class="mod-footer">
+              <span class="footer-chip">STRIX DEFENSE</span>
+              <span class="footer-action">&rarr;</span>
+            </div>
+          </article>
+
+          <!-- MODULE 04: STRATEGY COMMAND (CURRENTLY ACTIVE / DOMINANT) -->
+          <article class="tactical-module mod-strategy active-dominant" id="module-strategy" data-domain="strategy">
+            <div class="mod-glare"></div>
+            <div class="mod-active-scanline"></div>
+            <div class="mod-header">
+              <div class="mod-code text-magenta">DOMAIN 04 [ACTIVE]</div>
+              <div class="mod-tag tag-dominant">OPTIMIZING</div>
+            </div>
+            <div class="mod-icon-wrap">
+              <canvas class="canvas-icon" id="icon-canvas-strategy" width="70" height="70"></canvas>
+            </div>
+            <div class="mod-body">
+              <h3 class="mod-title text-magenta">STRATEGY COMMAND</h3>
+              <div class="mod-metric-primary">
+                <span class="metric-num text-magenta">78.6%</span>
+                <span class="metric-caption">TACTICAL SCORE</span>
+              </div>
+              <div class="mod-submetrics">
+                <div class="submetric-item">
+                  <span class="sub-key">ALIGNMENT:</span>
+                  <span class="sub-val text-cyan">91.2%</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">REGIME:</span>
+                  <span class="sub-val text-magenta">PRICE WAR</span>
+                </div>
+                <div class="submetric-item">
+                  <span class="sub-key">OPPORTUNITIES:</span>
+                  <span class="sub-val text-green">07 ADMISSIBLE</span>
+                </div>
+              </div>
+            </div>
+            <div class="mod-footer">
+              <span class="footer-chip chip-magenta">LEXICOGRAPHIC ARBITRATION</span>
+              <span class="footer-action text-magenta">&rarr;</span>
+            </div>
+          </article>
+
+        </div>
+
+        <!-- CHARLIE EVENT STREAM (Live Mission Feed) -->
+        <section class="tactical-panel feed-panel">
+          <div class="panel-header">
+            <div class="header-title-wrap">
+              <span class="corner-bracket"></span>
+              <span class="panel-title">CHARLIE EVENT STREAM</span>
+              <span class="panel-code">LIVE-LEDGER</span>
+            </div>
+            <span class="feed-live-indicator"><span class="pulse-dot"></span> STREAM ACTIVE</span>
+          </div>
+
+          <div class="panel-body feed-body" id="event-feed-list">
+            <!-- Dynamically populated and scrolled entries -->
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:12]</span>
+              <span class="entry-cat cat-core">CORE</span>
+              <span class="entry-msg">Digital Twin reality reconciled with verified banking ledger (99.8% confidence).</span>
+            </div>
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:18]</span>
+              <span class="entry-cat cat-alert">DETECT</span>
+              <span class="entry-msg">Enterprise pipeline velocity fluctuation detected (-11.4%).</span>
+            </div>
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:25]</span>
+              <span class="entry-cat cat-mission">MISSION</span>
+              <span class="entry-msg">Dynamic DAG compiled: #M-8842 dispatched to Worker Fleet (Autonomy L3).</span>
+            </div>
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:31]</span>
+              <span class="entry-cat cat-constraint">I15-GATE</span>
+              <span class="entry-msg">Business Constraint check PASSED: Liquid reserve ₹1.2 Cr &gt; ₹10L floor.</span>
+            </div>
+            <div class="feed-entry entry-highlight">
+              <span class="entry-time">[17:04:39]</span>
+              <span class="entry-cat cat-strategy">STRATEGY</span>
+              <span class="entry-msg">Resource reservation #res-8842 allocated ₹75,000 under PriceWar regime.</span>
+            </div>
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:46]</span>
+              <span class="entry-cat cat-sim">SIMULATE</span>
+              <span class="entry-msg">Pre-flight simulation: Zero margin deficit projected; advisory alternative ready.</span>
+            </div>
+            <div class="feed-entry">
+              <span class="entry-time">[17:04:52]</span>
+              <span class="entry-cat cat-security">FIREWALL</span>
+              <span class="entry-msg">Batch 6 Execution Firewall armed; external side effects locked and sovereign.</span>
+            </div>
+          </div>
+        </section>
+
+      </aside>
+
+    </main>
+
+
+    <!-- ================================================================= -->
+    <!-- 3. FUTURISTIC ANGULAR BOTTOM NAVIGATION -->
+    <!-- ================================================================= -->
+    <nav class="nexus-nav" id="bottom-dock">
+      <div class="nav-container">
+
+        <!-- Nav Item 1: CORE -->
+        <button class="nav-btn" data-target="core" id="nav-core">
+          <span class="btn-notch"></span>
+          <span class="nav-icon">◉</span>
+          <span class="nav-text">BUSINESS CORE</span>
+          <span class="nav-sub">DIGITAL TWIN</span>
+          <span class="nav-active-beam"></span>
+        </button>
+
+        <!-- Nav Item 2: REVENUE -->
+        <button class="nav-btn" data-target="revenue" id="nav-revenue">
+          <span class="btn-notch"></span>
+          <span class="nav-icon">◈</span>
+          <span class="nav-text">REVENUE COMMAND</span>
+          <span class="nav-sub">COMMERCIAL</span>
+          <span class="nav-active-beam"></span>
+        </button>
+
+        <!-- Nav Item 3: MISSIONS / OPERATIONS -->
+        <button class="nav-btn" data-target="operations" id="nav-operations">
+          <span class="btn-notch"></span>
+          <span class="nav-icon">⬡</span>
+          <span class="nav-text">OPERATIONS &amp; FLEET</span>
+          <span class="nav-sub">RUNTIME DAG</span>
+          <span class="nav-active-beam"></span>
+        </button>
+
+        <!-- Nav Item 4: STRATEGY (ACTIVE) -->
+        <button class="nav-btn active-nav" data-target="strategy" id="nav-strategy">
+          <span class="btn-notch"></span>
+          <span class="nav-icon">✦</span>
+          <span class="nav-text">STRATEGY COMMAND</span>
+          <span class="nav-sub">PRICE WAR REGIME</span>
+          <span class="nav-active-beam"></span>
+        </button>
+
+        <!-- Nav Item 5: GOVERNANCE / SECURITY -->
+        <button class="nav-btn" data-target="security" id="nav-security">
+          <span class="btn-notch"></span>
+          <span class="nav-icon">⛨</span>
+          <span class="nav-text">SECURITY &amp; FIREWALL</span>
+          <span class="nav-sub">BATCH 6 SOVEREIGN</span>
+          <span class="nav-active-beam"></span>
+        </button>
+
+      </div>
+    </nav>
+
+  </div>
+
+  <!-- Main JavaScript Controller -->
+  <script src="script.js"></script>
+</body>
+</html>
