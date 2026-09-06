@@ -301,6 +301,7 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFl
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentDispatcher, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentDispatcher>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IChildMissionGate, BusinessModelApp.Infrastructure.Runtime.Fleet.ChildMissionGate>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFleetHealthMonitor, BusinessModelApp.Infrastructure.Runtime.Fleet.FleetHealthMonitor>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentFleetPipelineCoordinator, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentFleetPipelineCoordinator>();
 
 
 

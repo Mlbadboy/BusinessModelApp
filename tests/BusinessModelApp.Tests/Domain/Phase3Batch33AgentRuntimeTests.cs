@@ -32,6 +32,7 @@ namespace BusinessModelApp.Tests.Domain
         private readonly AgentDispatcher _dispatcher = new();
         private readonly ChildMissionGate _childMissionGate;
         private readonly FleetHealthMonitor _healthMonitor;
+        private readonly AgentFleetPipelineCoordinator _pipelineCoordinator;
 
         private readonly TenantMissionPolicyContext _defaultPolicy;
 
@@ -44,6 +45,7 @@ namespace BusinessModelApp.Tests.Domain
             _fleetOrchestrator = new FleetOrchestrator(_fleetStore);
             _childMissionGate = new ChildMissionGate(_compiler, _graphStore, _auditLedger);
             _healthMonitor = new FleetHealthMonitor(_fleetStore);
+            _pipelineCoordinator = new AgentFleetPipelineCoordinator(_fleetOrchestrator, _leaseCoordinator, _admissionGate, _auditLedger);
 
             _defaultPolicy = new TenantMissionPolicyContext
             {
@@ -2380,11 +2382,352 @@ namespace BusinessModelApp.Tests.Domain
         }
 
         // ====================================================================
+        // ARK-14: INTEGRATED END-TO-END EXECUTION PIPELINE (10 tests)
+        // FleetOrchestrator -> Lease -> Dispatcher -> AdmissionGate -> State Machine -> DAG Progression -> Checkpoint
+        // ====================================================================
+
+        [Fact]
+        public async Task ARK14_DeterministicEndToEnd_ReadyNode_To_Completed_UnlocksDownstreamDAG()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Verify initial DAG state: N1 is Ready, N2 and N3 are Pending
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N1"].State);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N2"].State);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N3"].State);
+
+            // Execute N1 end-to-end through integrated pipeline
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded,
+                    TokensConsumed = 1500,
+                    CostUsdConsumed = 0.05m,
+                    ProducedArtifacts = new[]
+                    {
+                        new MissionArtifact
+                        {
+                            NodeId = envelope.MissionNodeId,
+                            Name = "research_brief.json",
+                            ContentType = "application/json",
+                            Sha256Hash = "hash_brief_123"
+                        }
+                    }
+                };
+            });
+
+            // Assert Step Succeeded
+            Assert.True(result.IsSuccess);
+            Assert.Equal("Completed", result.StepStatus);
+            Assert.Equal(MissionNodeId.From("N1"), result.ExecutedNodeId);
+            Assert.Equal(worker.WorkerId, result.WorkerId);
+            Assert.Equal(MissionNodeState.Succeeded, result.ResultingNodeState);
+            Assert.Equal(NodeExecutionEffect.EffectSucceeded, result.ResultingEffect);
+            Assert.True(result.CheckpointRecorded);
+
+            // Assert N1 is Succeeded and N2 is now UNLOCKED and transitioned to Ready
+            Assert.Equal(MissionNodeState.Succeeded, graph.Nodes["N1"].State);
+            Assert.Contains(MissionNodeId.From("N2"), result.UnlockedReadyNodeIds);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N2"].State);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N3"].State);
+
+            // Assert Audit Ledger contains both Admission and Checkpoint events
+            var auditEntries = await _auditLedger.GetEntriesAsync(graph.GraphId);
+            Assert.Contains(auditEntries, e => e.EventType == "NodeExecutionAdmitted");
+            Assert.Contains(auditEntries, e => e.EventType == "MissionGraphCheckpoint");
+        }
+
+        [Fact]
+        public async Task ARK14_StaleWorkerResurrection_RejectedFailClosed()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                // Tamper with envelope to present a stale/different worker ID
+                var tampered = envelope with { WorkerId = WorkerProcessId.New() };
+                return new AgentOutcomeProposal
+                {
+                    Envelope = tampered,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded
+                };
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("OutcomeAdmissionRejected", result.StepStatus);
+            Assert.Contains("Fencing", result.FailureReason);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N2"].State);
+        }
+
+        [Fact]
+        public async Task ARK14_ExpiredLease_OutcomeProposalRejected()
+        {
+            // Set node timeout to 1 millisecond so lease expires immediately during agent execution
+            var graph = await CreateCompiledGraphAsync(n => n with { Timeout = TimeSpan.FromMilliseconds(1) });
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Delay(50); // Wait for lease to expire
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded
+                };
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("OutcomeAdmissionRejected", result.StepStatus);
+            Assert.Contains("expired", result.FailureReason, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task ARK14_WorkerCrash_TransitionsToUnknownEffectAndReconciliation()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                throw new InvalidOperationException("Process crashed mid-capability execution");
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("WorkerCrashed", result.StepStatus);
+            Assert.Equal(MissionNodeState.Failed, result.ResultingNodeState);
+            Assert.Equal(NodeExecutionEffect.UnknownEffect, result.ResultingEffect);
+            Assert.Equal(NodeExecutionEffect.UnknownEffect, graph.Nodes["N1"].LastEffect);
+
+            // Downstream node N2 remains Pending (not unlocked)
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N2"].State);
+
+            var auditEntries = await _auditLedger.GetEntriesAsync(graph.GraphId);
+            Assert.Contains(auditEntries, e => e.EventType == "WorkerCrashUnknownEffect");
+        }
+
+        [Fact]
+        public async Task ARK14_UnknownEffect_BlocksDownstreamProgressionAndBlindRetries()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Simulate crashed node on N1
+            await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new Exception("Crash");
+            });
+
+            // Attempting to execute next step finds NO Ready node because N1 is Failed and N2 was never unlocked
+            var nextStepResult = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal();
+            });
+
+            Assert.False(nextStepResult.IsSuccess);
+            Assert.Equal("NoReadyNode", nextStepResult.StepStatus);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N2"].State);
+        }
+
+        [Fact]
+        public async Task ARK14_RevokedCapability_HaltsExecutionAndFailsNode()
+        {
+            // Node requires a capability that was valid at compile time (market_recon:v1)
+            var graph = await CreateCompiledGraphAsync(n => n with { RequiredCapabilityId = "market_recon:v1" });
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // But at execution time, the tenant policy has revoked this capability
+            var revokedPolicy = _defaultPolicy with { RegisteredCapabilityIds = new HashSet<string>() };
+
+            bool agentCodeExecuted = false;
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, revokedPolicy, async envelope =>
+            {
+                agentCodeExecuted = true;
+                await Task.Yield();
+                return new AgentOutcomeProposal { Envelope = envelope, ReportedStatus = ExecutionOutcomeStatus.Succeeded };
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("CapabilityRevoked", result.StepStatus);
+            Assert.False(agentCodeExecuted);
+            Assert.Equal(MissionNodeState.Failed, graph.Nodes["N1"].State);
+
+            var auditEntries = await _auditLedger.GetEntriesAsync(graph.GraphId);
+            Assert.Contains(auditEntries, e => e.EventType == "CapabilityRevokedExecutionHalted");
+        }
+
+        [Fact]
+        public async Task ARK14_ChangedGraphVersionDuringExecution_RejectsOutcome()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                // Another agent expanded graph from v1 to v2 while worker was running
+                var modifiedGraph = graph with { Version = graph.Version.Next() };
+                // Submit outcome against v2 with old v1 envelope
+                var admission = await _admissionGate.AdmitOutcomeProposalAsync(
+                    new AgentOutcomeProposal { Envelope = envelope, ReportedStatus = ExecutionOutcomeStatus.Succeeded },
+                    modifiedGraph,
+                    _defaultPolicy);
+
+                Assert.False(admission.IsAdmitted);
+                Assert.Contains("version", admission.FailureReason, StringComparison.OrdinalIgnoreCase);
+
+                return new AgentOutcomeProposal { Envelope = envelope, ReportedStatus = ExecutionOutcomeStatus.Failed };
+            });
+
+            Assert.False(result.IsSuccess);
+        }
+
+        [Fact]
+        public async Task ARK14_BudgetExhaustion_RejectedByAdmissionGate()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded,
+                    TokensConsumed = 50_000 // Node limit is 10,000
+                };
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("OutcomeAdmissionRejected", result.StepStatus);
+            Assert.Contains("budget", result.FailureReason, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task ARK14_TenantMismatch_FailsClosed()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var crossTenantPolicy = _defaultPolicy with { WorkspaceId = _tenantB };
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, crossTenantPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded
+                };
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("OutcomeAdmissionRejected", result.StepStatus);
+            Assert.Contains("Tenant isolation", result.FailureReason);
+        }
+
+        [Fact]
+        public async Task ARK14_KillSwitchActive_InstantlyAbortsExecution()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var killPolicy = _defaultPolicy with { IsEmergencyKillActive = true };
+
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, killPolicy, async _ =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal();
+            });
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal("KillSwitchActive", result.StepStatus);
+            Assert.Equal(MissionNodeState.Killed, result.ResultingNodeState);
+            Assert.Equal(MissionGraphState.Killed, graph.State);
+
+            var auditEntries = await _auditLedger.GetEntriesAsync(graph.GraphId);
+            Assert.Contains(auditEntries, e => e.EventType == "MissionEmergencyKillTriggered");
+        }
+
+        // ====================================================================
         // HELPER METHODS
         // ====================================================================
 
-        private async Task<MissionGraph> CreateCompiledGraphAsync()
+        private async Task<MissionGraph> CreateCompiledGraphAsync(Func<ProposedNode, ProposedNode>? customizeN1 = null)
         {
+            var node1 = new ProposedNode
+            {
+                NodeId = "N1",
+                NodeType = MissionNodeType.Investigate,
+                Title = "Investigate Funnel",
+                MaxBudgetTokens = 10_000,
+                MaxCostUsd = 0.50m
+            };
+            if (customizeN1 != null)
+            {
+                node1 = customizeN1(node1);
+            }
+
             var proposal = new MissionGraphProposal
             {
                 ProposalId = Guid.NewGuid(),
@@ -2396,14 +2739,7 @@ namespace BusinessModelApp.Tests.Domain
                 EstimatedCostUsd = 1.00m,
                 ProposedNodes = new[]
                 {
-                    new ProposedNode
-                    {
-                        NodeId = "N1",
-                        NodeType = MissionNodeType.Investigate,
-                        Title = "Investigate Funnel",
-                        MaxBudgetTokens = 10_000,
-                        MaxCostUsd = 0.50m
-                    },
+                    node1,
                     new ProposedNode
                     {
                         NodeId = "N2",

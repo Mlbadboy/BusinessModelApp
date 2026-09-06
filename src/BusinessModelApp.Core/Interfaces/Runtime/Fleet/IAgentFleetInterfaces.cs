@@ -150,4 +150,80 @@ namespace BusinessModelApp.Core.Interfaces.Runtime.Fleet
         Task<IReadOnlyList<WorkerProcessRecord>> GetAvailableWorkersAsync(WorkerPoolType poolType, CancellationToken ct = default);
         Task<IReadOnlyList<WorkerProcessRecord>> GetAllWorkersAsync(CancellationToken ct = default);
     }
+
+    public record IntegratedExecutionStepResult
+    {
+        public bool IsSuccess { get; init; }
+        public string StepStatus { get; init; } = string.Empty;
+        public MissionNodeId? ExecutedNodeId { get; init; }
+        public WorkerProcessId? WorkerId { get; init; }
+        public LeaseId? LeaseId { get; init; }
+        public FenceToken FenceToken { get; init; }
+        public ExecutionAttemptId? AttemptId { get; init; }
+        public MissionNodeState ResultingNodeState { get; init; }
+        public NodeExecutionEffect ResultingEffect { get; init; }
+        public IReadOnlyList<MissionNodeId> UnlockedReadyNodeIds { get; init; } = Array.Empty<MissionNodeId>();
+        public string? FailureReason { get; init; }
+        public bool CheckpointRecorded { get; init; }
+        public Guid? AuditEntryId { get; init; }
+
+        public static IntegratedExecutionStepResult Succeeded(
+            MissionNodeId nodeId,
+            WorkerProcessId workerId,
+            LeaseId leaseId,
+            FenceToken fenceToken,
+            ExecutionAttemptId attemptId,
+            MissionNodeState nodeState,
+            NodeExecutionEffect effect,
+            IReadOnlyList<MissionNodeId> unlockedNodes,
+            Guid? auditEntryId = null) =>
+            new()
+            {
+                IsSuccess = true,
+                StepStatus = "Completed",
+                ExecutedNodeId = nodeId,
+                WorkerId = workerId,
+                LeaseId = leaseId,
+                FenceToken = fenceToken,
+                AttemptId = attemptId,
+                ResultingNodeState = nodeState,
+                ResultingEffect = effect,
+                UnlockedReadyNodeIds = unlockedNodes,
+                CheckpointRecorded = true,
+                AuditEntryId = auditEntryId
+            };
+
+        public static IntegratedExecutionStepResult Failed(
+            string status,
+            string reason,
+            MissionNodeId? nodeId = null,
+            WorkerProcessId? workerId = null,
+            LeaseId? leaseId = null,
+            FenceToken fenceToken = default,
+            ExecutionAttemptId? attemptId = null,
+            MissionNodeState nodeState = MissionNodeState.Failed,
+            NodeExecutionEffect effect = NodeExecutionEffect.NoEffect) =>
+            new()
+            {
+                IsSuccess = false,
+                StepStatus = status,
+                FailureReason = reason,
+                ExecutedNodeId = nodeId,
+                WorkerId = workerId,
+                LeaseId = leaseId,
+                FenceToken = fenceToken,
+                AttemptId = attemptId,
+                ResultingNodeState = nodeState,
+                ResultingEffect = effect
+            };
+    }
+
+    public interface IAgentFleetPipelineCoordinator
+    {
+        Task<IntegratedExecutionStepResult> ExecuteStepAsync(
+            MissionGraph graph,
+            TenantMissionPolicyContext tenantPolicy,
+            Func<FencingEnvelope, Task<AgentOutcomeProposal>> agentExecutor,
+            CancellationToken ct = default);
+    }
 }

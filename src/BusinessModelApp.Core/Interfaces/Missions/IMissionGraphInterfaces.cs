@@ -24,6 +24,7 @@ namespace BusinessModelApp.Core.Interfaces.Missions
         public IReadOnlySet<string> RegisteredCapabilityIds { get; init; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public IReadOnlySet<MissionNodeType> DisallowedNodeTypes { get; init; } = new HashSet<MissionNodeType>();
         public bool AllowDynamicExpansion { get; init; } = true;
+        public bool IsEmergencyKillActive { get; init; } = false;
     }
 
     public record GraphValidationResult

@@ -119,10 +119,10 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             }
 
             // 2. Graph version match (stale graph version rejection)
-            if (envelope.GraphVersion != currentGraph.Version)
+            if (envelope.GraphVersion.Value != currentGraph.Version.Value)
             {
                 return Task.FromResult(FencingValidationResult.StaleGraph(
-                    $"Stale graph version: attempt was executed under version {envelope.GraphVersion}, but current graph is {currentGraph.Version}."));
+                    $"Stale graph version: attempt was executed under version {envelope.GraphVersion.Value}, but current graph is {currentGraph.Version.Value}."));
             }
 
             var key = $"{envelope.MissionGraphId}:{envelope.MissionNodeId.Value}";

@@ -39,10 +39,11 @@ Agents are strictly **untrusted, subordinate cognitive executors**. They propose
 ### CERTIFICATION SUMMARY & GATE STATUS
 
 ```text
-Phase 3 Batch 3.2 baseline (P1-P2 + P3.0 + P3.1 + P3.2): 470 / 470 PASS
-Batch 3.3 Agent Runtime Kernel tests (ARK-01 to ARK-13): 103 / 103 PASS
+Phase 3 Batch 3.2 baseline (P1-P2 + P3.0 + P3.1 + P3.2):       470 / 470 PASS
+Batch 3.3 Unit & Fleet tests (ARK-01 to ARK-13):               103 / 103 PASS
+Batch 3.3 Integrated Pipeline tests (ARK-14):                   10 /  10 PASS
 -----------------------------------------------------------------------------------------
-Total Certified Test Suite:                             573 / 573 PASS
+Total Certified Test Suite:                                   583 / 583 PASS (100%)
 
 P3.0-G01 Runtime Kernel:                  PASS
 P3.0-G02 Sovereign Brain Fabric:          PASS
@@ -53,7 +54,7 @@ P3.3-G01 Agent Runtime Kernel & Fleet:    PASS
 Batch 6 Regression Wall:                  19 / 19 PASS
 Execution Firewall:                       LOCKED & ENFORCED
 Autonomous Consequential Actions:         ZERO
-Frontend Production Build:                PASS (0 errors, 12,151 modules, 12.96s)
+Frontend Production Build:                PASS (0 errors, 12,151 modules, 41.39s)
 ```
 
 ---
@@ -106,6 +107,7 @@ Frontend Production Build:                PASS (0 errors, 12,151 modules, 12.96s
 | **ARK-11** | Multi-Tenant Fleet Isolation | **PASS** | Cross-tenant lease acquisition, outcome submission, and policy mismatch rejected fail-closed; zero cross-tenant leakage. |
 | **ARK-12** | Kill Switch & Emergency Evacuation | **PASS** | Workspace kill switch instantly invalidates all active worker leases and blocks pending outcome proposals. |
 | **ARK-13** | Chaos & Concurrency Resilience | **PASS** | Resilient against concurrent heartbeats, simultaneous outcome submissions, stale worker resurrection, and racing expirations. |
+| **ARK-14** | Integrated End-to-End Pipeline | **PASS** | `FleetOrchestrator` $\to$ `LeaseCoordinator` $\to$ `AgentDispatcher` $\to$ `AdmissionGate` $\to$ `State Machine` $\to$ `DAG Progression` $\to$ `Audit Ledger Checkpoint` verified across 10 deterministic tests (happy path, stale workers, expired lease, crash to UnknownEffect, blind retry block, capability revocation, graph version shift, budget exhaustion, tenant mismatch, kill switch). |
 
 ---
 
@@ -114,6 +116,8 @@ Frontend Production Build:                PASS (0 errors, 12,151 modules, 12.96s
 Phase 3 Batch 3.3 is officially certified as production-ready.
 1. Invariants $I11$, $I12$, and $I12\text{-A}$ remain intact and enforced.
 2. Invariants $I13$ (Agent Runtime Subordination) and $I13\text{-A}$ (Lease Does Not Confer Authority) are strictly enforced across all fleet components.
-3. The Batch 6 Execution Firewall remains sovereign and zero unauthorized external consequential executions occurred.
-4. Total test suite is **573 / 573 PASS** (0 failures, 0 skipped).
-5. Frontend production build compiles cleanly in **12.96s** with zero errors.
+3. Integrated pipeline (`FleetOrchestrator` $\to$ `WorkerLeaseCoordinator` $\to$ `AgentDispatcher` $\to$ `AgentOutcomeAdmissionGate` $\to$ `Runtime State Machine` $\to$ `DAG Progression` $\to$ `Ledger Checkpoint`) executes deterministically with zero authority leakage.
+4. The Batch 6 Execution Firewall remains sovereign and zero unauthorized external consequential executions occurred.
+5. Total test suite is **583 / 583 PASS** (0 failures, 0 skipped).
+6. Frontend production build compiles cleanly in **41.39s** with zero errors.
+
