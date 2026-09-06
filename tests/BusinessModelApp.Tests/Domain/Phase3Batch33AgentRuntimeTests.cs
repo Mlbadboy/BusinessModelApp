@@ -2525,8 +2525,9 @@ namespace BusinessModelApp.Tests.Domain
 
             Assert.False(result.IsSuccess);
             Assert.Equal("WorkerCrashed", result.StepStatus);
-            Assert.Equal(MissionNodeState.Failed, result.ResultingNodeState);
+            Assert.Equal(MissionNodeState.Blocked, result.ResultingNodeState);
             Assert.Equal(NodeExecutionEffect.UnknownEffect, result.ResultingEffect);
+            Assert.Equal(MissionNodeState.Blocked, graph.Nodes["N1"].State);
             Assert.Equal(NodeExecutionEffect.UnknownEffect, graph.Nodes["N1"].LastEffect);
 
             // Downstream node N2 remains Pending (not unlocked)
@@ -2707,6 +2708,334 @@ namespace BusinessModelApp.Tests.Domain
 
             var auditEntries = await _auditLedger.GetEntriesAsync(graph.GraphId);
             Assert.Contains(auditEntries, e => e.EventType == "MissionEmergencyKillTriggered");
+        }
+
+        // ====================================================================
+        // ARK-15: UNKNOWNEFFECT FORMALIZATION & DETERMINISTIC RECONCILIATION (8 tests) (P3.3-H1)
+        // NodeState != EffectState: UnknownEffect -> Blocked (never blind Failed) -> ReconciliationRequired -> Deterministic Terminal Effect
+        // ====================================================================
+
+        [Fact]
+        public async Task ARK15_01_UnknownEffect_DistinctFromFailedSemantics()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Worker crashes mid-execution
+            var result = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new InvalidOperationException("External API network connection lost mid-flight");
+            });
+
+            // NodeState is Blocked (NOT Failed), Effect is UnknownEffect
+            // "Never allow Failed itself to imply NoEffect"
+            Assert.False(result.IsSuccess);
+            Assert.Equal(MissionNodeState.Blocked, result.ResultingNodeState);
+            Assert.Equal(NodeExecutionEffect.UnknownEffect, result.ResultingEffect);
+            Assert.NotEqual(MissionNodeState.Failed, graph.Nodes["N1"].State);
+            Assert.Equal(MissionNodeState.Blocked, graph.Nodes["N1"].State);
+            Assert.Equal(NodeExecutionEffect.UnknownEffect, graph.Nodes["N1"].LastEffect);
+            Assert.Contains("Effect reconciliation required", graph.Nodes["N1"].FailureReason);
+        }
+
+        [Fact]
+        public async Task ARK15_02_UnknownEffect_PersistsAcrossCheckpoint()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new Exception("Crash before response");
+            });
+
+            // Persist to graph store / simulated checkpoint
+            await _graphStore.SaveGraphAsync(graph);
+            var loadedGraph = await _graphStore.GetGraphAsync(graph.GraphId);
+
+            Assert.NotNull(loadedGraph);
+            var n1 = loadedGraph.Nodes["N1"];
+            Assert.Equal(MissionNodeState.Blocked, n1.State);
+            Assert.Equal(NodeExecutionEffect.UnknownEffect, n1.LastEffect);
+            Assert.Contains("Effect reconciliation required", n1.FailureReason);
+        }
+
+        [Fact]
+        public async Task ARK15_03_Restart_PreservesReconciliationRequirement()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Crash occurs
+            await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new Exception("Crash");
+            });
+
+            // New orchestrator cycle / restarted dispatcher tries to advance DAG
+            var secondAttemptResult = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal { Envelope = envelope, ReportedStatus = ExecutionOutcomeStatus.Succeeded };
+            });
+
+            // Blind retry is strictly BLOCKED - N1 is Blocked, not Ready; N2 is Pending
+            Assert.False(secondAttemptResult.IsSuccess);
+            Assert.Equal("NoReadyNode", secondAttemptResult.StepStatus);
+            Assert.Equal(MissionNodeState.Blocked, graph.Nodes["N1"].State);
+            Assert.Equal(MissionNodeState.Pending, graph.Nodes["N2"].State);
+        }
+
+        [Fact]
+        public async Task ARK15_04_Reconciliation_NoEffectPermitsSafeRetry()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // 1. Crash into UnknownEffect
+            await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new Exception("Crash");
+            });
+            Assert.Equal(MissionNodeState.Blocked, graph.Nodes["N1"].State);
+
+            // 2. Deterministic reconciliation proves NO side-effect took place externally
+            var reconResult = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.NoEffect,
+                _defaultPolicy);
+
+            Assert.True(reconResult.IsSuccess);
+            Assert.Equal("NoEffectRetryPermitted", reconResult.Status);
+            Assert.True(reconResult.RetryPermitted);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N1"].State);
+            Assert.Equal(NodeExecutionEffect.NoEffect, graph.Nodes["N1"].LastEffect);
+
+            // 3. Safe retry now succeeds through pipeline
+            var retryResult = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded,
+                    TokensConsumed = 500,
+                    CostUsdConsumed = 0.01m
+                };
+            });
+
+            Assert.True(retryResult.IsSuccess);
+            Assert.Equal(MissionNodeState.Succeeded, graph.Nodes["N1"].State);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N2"].State); // unlocked downstream
+        }
+
+        [Fact]
+        public async Task ARK15_05_Reconciliation_SuccessPreventsDuplicateRetry()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Register CognitiveAnalyst worker for downstream N2 (Analyze)
+            await _fleetStore.RegisterWorkerAsync(new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.CognitiveAnalyst,
+                HealthStatus = WorkerHealthStatus.Healthy
+            });
+
+            // 1. Crash into UnknownEffect
+            await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async _ =>
+            {
+                await Task.Yield();
+                throw new Exception("Crash");
+            });
+
+            // 2. Reconciliation confirms external operation ACTUALLY succeeded (e.g. invoice created)
+            var reconResult = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.EffectSucceeded,
+                _defaultPolicy);
+
+            Assert.True(reconResult.IsSuccess);
+            Assert.Equal("EffectSucceededDuplicateRetryBlocked", reconResult.Status);
+            Assert.False(reconResult.RetryPermitted);
+            Assert.True(reconResult.DownstreamUnlocked);
+            Assert.Equal(MissionNodeState.Succeeded, graph.Nodes["N1"].State);
+            Assert.Equal(NodeExecutionEffect.EffectSucceeded, graph.Nodes["N1"].LastEffect);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N2"].State);
+
+            // 3. Subsequent pipeline execution advances to N2 directly, never duplicate-retrying N1
+            var nextStepResult = await _pipelineCoordinator.ExecuteStepAsync(graph, _defaultPolicy, async envelope =>
+            {
+                await Task.Yield();
+                return new AgentOutcomeProposal
+                {
+                    Envelope = envelope,
+                    ReportedStatus = ExecutionOutcomeStatus.Succeeded,
+                    TokensConsumed = 500,
+                    CostUsdConsumed = 0.01m
+                };
+            });
+
+            Assert.True(nextStepResult.IsSuccess);
+            Assert.Equal(MissionNodeId.From("N2"), nextStepResult.ExecutedNodeId);
+            Assert.Equal(MissionNodeState.Succeeded, graph.Nodes["N2"].State);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N3"].State);
+        }
+
+        [Fact]
+        public async Task ARK15_06_Reconciliation_FailedPermitsGovernedRetry()
+        {
+            // Node with MaxRetries = 2, CurrentAttempt = 1
+            var graph = await CreateCompiledGraphAsync(n => n with { MaxRetries = 2 });
+            graph.Nodes["N1"].CurrentAttempt = 1;
+
+            var worker = new WorkerProcessRecord
+            {
+                WorkerId = WorkerProcessId.New(),
+                PoolType = WorkerPoolType.DomainResearcher,
+                HealthStatus = WorkerHealthStatus.Healthy
+            };
+            await _fleetStore.RegisterWorkerAsync(worker);
+
+            // Put into UnknownEffect
+            graph.Nodes["N1"].State = MissionNodeState.Blocked;
+            graph.Nodes["N1"].LastEffect = NodeExecutionEffect.UnknownEffect;
+
+            // Reconcile as EffectFailed with remaining attempts -> retry permitted
+            var reconResult1 = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.EffectFailed,
+                _defaultPolicy);
+
+            Assert.True(reconResult1.IsSuccess);
+            Assert.True(reconResult1.RetryPermitted);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N1"].State);
+
+            // Now test retry budget exhausted: CurrentAttempt = 2 >= MaxRetries = 2
+            graph.Nodes["N1"].CurrentAttempt = 2;
+            graph.Nodes["N1"].State = MissionNodeState.Blocked;
+            graph.Nodes["N1"].LastEffect = NodeExecutionEffect.UnknownEffect;
+
+            var reconResult2 = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.EffectFailed,
+                _defaultPolicy);
+
+            Assert.True(reconResult2.IsSuccess);
+            Assert.False(reconResult2.RetryPermitted);
+            Assert.Equal(MissionNodeState.Failed, graph.Nodes["N1"].State);
+            Assert.Equal(NodeExecutionEffect.EffectFailed, graph.Nodes["N1"].LastEffect);
+        }
+
+        [Fact]
+        public async Task ARK15_07_DuplicateReconciliation_IsIdempotent()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            graph.Nodes["N1"].State = MissionNodeState.Blocked;
+            graph.Nodes["N1"].LastEffect = NodeExecutionEffect.UnknownEffect;
+
+            // First reconciliation
+            var first = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.NoEffect,
+                _defaultPolicy);
+
+            Assert.True(first.IsSuccess);
+            Assert.Equal("NoEffectRetryPermitted", first.Status);
+
+            // Second identical reconciliation call is an idempotent no-op
+            var second = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.NoEffect,
+                _defaultPolicy);
+
+            Assert.True(second.IsSuccess);
+            Assert.Equal("IdempotentNoop", second.Status);
+            Assert.Equal(MissionNodeState.Ready, graph.Nodes["N1"].State);
+            Assert.Equal(NodeExecutionEffect.NoEffect, graph.Nodes["N1"].LastEffect);
+        }
+
+        [Fact]
+        public async Task ARK15_08_StaleReconciliation_CrossTenantOrUnknownEffectRejected()
+        {
+            var graph = await CreateCompiledGraphAsync();
+            graph.Nodes["N1"].State = MissionNodeState.Blocked;
+            graph.Nodes["N1"].LastEffect = NodeExecutionEffect.UnknownEffect;
+
+            // 1. Cannot reconcile target as UnknownEffect (must resolve deterministically)
+            var rejectUnknown = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.UnknownEffect,
+                _defaultPolicy);
+
+            Assert.False(rejectUnknown.IsSuccess);
+            Assert.Contains("UnknownEffect is invalid as target", rejectUnknown.Message);
+
+            // 2. Cross-tenant reconciliation rejected fail-closed
+            var tenantBPolicy = _defaultPolicy with { WorkspaceId = _tenantB };
+            var rejectTenant = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.NoEffect,
+                tenantBPolicy);
+
+            Assert.False(rejectTenant.IsSuccess);
+            Assert.Contains("Tenant mismatch", rejectTenant.Message);
+
+            // 3. Stale reconciliation against already Succeeded node rejected
+            graph.Nodes["N1"].State = MissionNodeState.Succeeded;
+            graph.Nodes["N1"].LastEffect = NodeExecutionEffect.EffectSucceeded;
+
+            var rejectStale = await _pipelineCoordinator.ReconcileNodeEffectAsync(
+                graph,
+                MissionNodeId.From("N1"),
+                NodeExecutionEffect.NoEffect,
+                _defaultPolicy);
+
+            Assert.False(rejectStale.IsSuccess);
+            Assert.Contains("not awaiting reconciliation", rejectStale.Message);
         }
 
         // ====================================================================

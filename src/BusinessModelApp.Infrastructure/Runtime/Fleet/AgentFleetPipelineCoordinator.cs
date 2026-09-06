@@ -156,8 +156,11 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             catch (Exception ex)
             {
                 // Worker crashed / threw exception
-                node.State = MissionNodeState.Failed;
+                // NodeState (Blocked) != EffectState (UnknownEffect)
+                // Never allow Failed to imply NoEffect!
+                node.State = MissionNodeState.Blocked;
                 node.LastEffect = NodeExecutionEffect.UnknownEffect;
+                node.FailureReason = $"Worker crashed during execution. Effect reconciliation required before retry or progression: {ex.Message}";
                 await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
 
                 await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
@@ -165,18 +168,18 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                     GraphId = graph.GraphId,
                     Version = graph.Version,
                     EventType = "WorkerCrashUnknownEffect",
-                    Details = $"Worker '{worker.WorkerId.Value}' crashed during execution. Effect reconciliation required: {ex.Message}"
+                    Details = $"Worker '{worker.WorkerId.Value}' crashed during execution. Node '{node.NodeId.Value}' placed in Blocked state with UnknownEffect. Reconciliation required: {ex.Message}"
                 }, ct);
 
                 return IntegratedExecutionStepResult.Failed(
                     "WorkerCrashed",
-                    $"Worker crashed during execution: {ex.Message}",
+                    node.FailureReason,
                     node.NodeId,
                     worker.WorkerId,
                     lease.LeaseId,
                     fenceToken,
                     attemptId,
-                    MissionNodeState.Failed,
+                    MissionNodeState.Blocked,
                     NodeExecutionEffect.UnknownEffect);
             }
 
@@ -261,6 +264,134 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                 admission.ResultingEffect,
                 unlockedNodes,
                 admission.AuditEntryId);
+        }
+
+        public async Task<ReconciliationOutcomeResult> ReconcileNodeEffectAsync(
+            MissionGraph graph,
+            MissionNodeId nodeId,
+            NodeExecutionEffect terminalEffect,
+            TenantMissionPolicyContext tenantPolicy,
+            CancellationToken ct = default)
+        {
+            // 1. Tenant boundary enforcement
+            if (graph.WorkspaceId != tenantPolicy.WorkspaceId)
+            {
+                return ReconciliationOutcomeResult.Rejected(
+                    $"Tenant mismatch: graph tenant '{graph.WorkspaceId}' does not match context tenant '{tenantPolicy.WorkspaceId}'.",
+                    nodeId);
+            }
+
+            // 2. Node lookup
+            if (!graph.Nodes.TryGetValue(nodeId.Value, out var node))
+            {
+                return ReconciliationOutcomeResult.Rejected(
+                    $"Node '{nodeId.Value}' not found in mission graph '{graph.GraphId.Value}'.",
+                    nodeId);
+            }
+
+            // 3. Reject reconciliation to UnknownEffect (must resolve deterministically)
+            if (terminalEffect == NodeExecutionEffect.UnknownEffect)
+            {
+                return ReconciliationOutcomeResult.Rejected(
+                    "Deterministic reconciliation requires terminal effect (NoEffect, EffectSucceeded, or EffectFailed). UnknownEffect is invalid as target.",
+                    nodeId);
+            }
+
+            // 4. Idempotency & Stale Check
+            if (node.LastEffect == terminalEffect)
+            {
+                return ReconciliationOutcomeResult.IdempotentNoop(nodeId, node.State, node.LastEffect);
+            }
+
+            if (node.LastEffect != NodeExecutionEffect.UnknownEffect)
+            {
+                return ReconciliationOutcomeResult.Rejected(
+                    $"Node '{nodeId.Value}' is not awaiting reconciliation (current effect is {node.LastEffect}, state is {node.State}). Stale reconciliation attempt rejected.",
+                    nodeId);
+            }
+
+            // 5. Apply deterministic reconciliation based on verified terminal effect
+            switch (terminalEffect)
+            {
+                case NodeExecutionEffect.NoEffect:
+                    // External side-effect did not execute -> safe to return to Ready for retry
+                    node.State = MissionNodeState.Ready;
+                    node.LastEffect = NodeExecutionEffect.NoEffect;
+                    node.FailureReason = null;
+
+                    await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
+                    {
+                        GraphId = graph.GraphId,
+                        Version = graph.Version,
+                        EventType = "NodeEffectReconciled",
+                        Details = $"Node '{nodeId.Value}' reconciled as NoEffect. Blind retry hazard cleared; node reset to Ready state."
+                    }, ct);
+
+                    return ReconciliationOutcomeResult.NoEffectRetryPermitted(nodeId);
+
+                case NodeExecutionEffect.EffectSucceeded:
+                    // External side-effect executed successfully -> prevent duplicate retry, complete node, advance DAG
+                    node.State = MissionNodeState.Succeeded;
+                    node.LastEffect = NodeExecutionEffect.EffectSucceeded;
+                    node.FailureReason = null;
+
+                    bool unlockedDownstream = false;
+                    foreach (var candidate in graph.Nodes.Values.Where(n => n.State == MissionNodeState.Pending))
+                    {
+                        var inboundDependencies = graph.Dependencies.Where(d => d.DependentNodeId == candidate.NodeId).ToList();
+                        if (inboundDependencies.Count > 0)
+                        {
+                            bool allSatisfied = inboundDependencies.All(dep =>
+                                graph.Nodes.TryGetValue(dep.RequiredNodeId.Value, out var req) &&
+                                req.State == MissionNodeState.Succeeded);
+
+                            if (allSatisfied)
+                            {
+                                candidate.State = MissionNodeState.Ready;
+                                unlockedDownstream = true;
+                            }
+                        }
+                    }
+
+                    await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
+                    {
+                        GraphId = graph.GraphId,
+                        Version = graph.Version,
+                        EventType = "NodeEffectReconciled",
+                        Details = $"Node '{nodeId.Value}' reconciled as EffectSucceeded. Duplicate retry blocked; node transitioned to Succeeded (unlockedDownstream={unlockedDownstream})."
+                    }, ct);
+
+                    return ReconciliationOutcomeResult.SucceededCompleted(nodeId, unlockedDownstream);
+
+                case NodeExecutionEffect.EffectFailed:
+                    // External side-effect executed and failed -> governed retry if budget remains
+                    bool retryPermitted = node.CurrentAttempt < node.ExecutionPolicy.MaxRetries;
+                    if (retryPermitted)
+                    {
+                        node.State = MissionNodeState.Ready;
+                        node.LastEffect = NodeExecutionEffect.EffectFailed;
+                        node.FailureReason = "Reconciled as EffectFailed; governed retry permitted.";
+                    }
+                    else
+                    {
+                        node.State = MissionNodeState.Failed;
+                        node.LastEffect = NodeExecutionEffect.EffectFailed;
+                        node.FailureReason = "Reconciled as EffectFailed; retry budget exhausted.";
+                    }
+
+                    await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
+                    {
+                        GraphId = graph.GraphId,
+                        Version = graph.Version,
+                        EventType = "NodeEffectReconciled",
+                        Details = $"Node '{nodeId.Value}' reconciled as EffectFailed. ResultingState={node.State}, RetryPermitted={retryPermitted}."
+                    }, ct);
+
+                    return ReconciliationOutcomeResult.FailedTerminal(nodeId, retryPermitted);
+
+                default:
+                    return ReconciliationOutcomeResult.Rejected($"Unsupported reconciliation effect: {terminalEffect}", nodeId);
+            }
         }
     }
 }

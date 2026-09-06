@@ -42,19 +42,21 @@ Agents are strictly **untrusted, subordinate cognitive executors**. They propose
 Phase 3 Batch 3.2 baseline (P1-P2 + P3.0 + P3.1 + P3.2):       470 / 470 PASS
 Batch 3.3 Unit & Fleet tests (ARK-01 to ARK-13):               103 / 103 PASS
 Batch 3.3 Integrated Pipeline tests (ARK-14):                   10 /  10 PASS
+Batch 3.3 UnknownEffect Formalization tests (ARK-15 / P3.3-H1):   8 /   8 PASS
 -----------------------------------------------------------------------------------------
-Total Certified Test Suite:                                   583 / 583 PASS (100%)
+Total Certified Test Suite:                                   591 / 591 PASS (100%)
 
 P3.0-G01 Runtime Kernel:                  PASS
 P3.0-G02 Sovereign Brain Fabric:          PASS
 P3.1-G01 Ambient Responsibility:          PASS
 P3.2-G01 Dynamic Mission Graph:           PASS
 P3.3-G01 Agent Runtime Kernel & Fleet:    PASS
+P3.3-H1  UnknownEffect Formalization:     CERTIFIED
 
 Batch 6 Regression Wall:                  19 / 19 PASS
 Execution Firewall:                       LOCKED & ENFORCED
 Autonomous Consequential Actions:         ZERO
-Frontend Production Build:                PASS (0 errors, 12,151 modules, 41.39s)
+Frontend Production Build:                PASS (0 errors, 12,151 modules, 13.94s)
 ```
 
 ---
@@ -108,16 +110,18 @@ Frontend Production Build:                PASS (0 errors, 12,151 modules, 41.39s
 | **ARK-12** | Kill Switch & Emergency Evacuation | **PASS** | Workspace kill switch instantly invalidates all active worker leases and blocks pending outcome proposals. |
 | **ARK-13** | Chaos & Concurrency Resilience | **PASS** | Resilient against concurrent heartbeats, simultaneous outcome submissions, stale worker resurrection, and racing expirations. |
 | **ARK-14** | Integrated End-to-End Pipeline | **PASS** | `FleetOrchestrator` $\to$ `LeaseCoordinator` $\to$ `AgentDispatcher` $\to$ `AdmissionGate` $\to$ `State Machine` $\to$ `DAG Progression` $\to$ `Audit Ledger Checkpoint` verified across 10 deterministic tests (happy path, stale workers, expired lease, crash to UnknownEffect, blind retry block, capability revocation, graph version shift, budget exhaustion, tenant mismatch, kill switch). |
+| **ARK-15** | UnknownEffect Formalization & Reconciliation (P3.3-H1) | **PASS** | Explicit separation of `NodeState` (Blocked) from `EffectState` (UnknownEffect). Blind retries blocked. Deterministic reconciliation via `IReconciliationOutcomeResult` resolves to `NoEffect` (safe retry), `EffectSucceeded` (duplicate retry blocked, downstream unlocked), or `EffectFailed` (governed retry budget). Checkpoint persistence, restart protection, and cross-tenant rejections verified across 8 tests. |
 
 ---
 
 ### ARCHITECTURAL ATTESTATION
 
-Phase 3 Batch 3.3 is officially certified as production-ready.
+Phase 3 Batch 3.3 is officially certified as production-ready and frozen.
 1. Invariants $I11$, $I12$, and $I12\text{-A}$ remain intact and enforced.
 2. Invariants $I13$ (Agent Runtime Subordination) and $I13\text{-A}$ (Lease Does Not Confer Authority) are strictly enforced across all fleet components.
-3. Integrated pipeline (`FleetOrchestrator` $\to$ `WorkerLeaseCoordinator` $\to$ `AgentDispatcher` $\to$ `AgentOutcomeAdmissionGate` $\to$ `Runtime State Machine` $\to$ `DAG Progression` $\to$ `Ledger Checkpoint`) executes deterministically with zero authority leakage.
-4. The Batch 6 Execution Firewall remains sovereign and zero unauthorized external consequential executions occurred.
-5. Total test suite is **583 / 583 PASS** (0 failures, 0 skipped).
-6. Frontend production build compiles cleanly in **41.39s** with zero errors.
+3. Amendment P3.3-H1 is fully implemented: $\text{NodeState} \neq \text{EffectState}$, worker crash transitions to `Blocked` + `UnknownEffect`, blind retries are blocked, and deterministic reconciliation is enforced.
+4. Integrated pipeline (`FleetOrchestrator` $\to$ `WorkerLeaseCoordinator` $\to$ `AgentDispatcher` $\to$ `AgentOutcomeAdmissionGate` $\to$ `Runtime State Machine` $\to$ `DAG Progression` $\to$ `Ledger Checkpoint`) executes deterministically with zero authority leakage.
+5. The Batch 6 Execution Firewall remains sovereign and zero unauthorized external consequential executions occurred.
+6. Total test suite is **591 / 591 PASS** (0 failures, 0 skipped).
+7. Frontend production build compiles cleanly in **13.94s** with zero errors.
 

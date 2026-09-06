@@ -218,12 +218,92 @@ namespace BusinessModelApp.Core.Interfaces.Runtime.Fleet
             };
     }
 
+    public record ReconciliationOutcomeResult
+    {
+        public bool IsSuccess { get; init; }
+        public string Status { get; init; } = string.Empty;
+        public MissionNodeId NodeId { get; init; }
+        public MissionNodeState ResultingNodeState { get; init; }
+        public NodeExecutionEffect ReconciledEffect { get; init; }
+        public bool RetryPermitted { get; init; }
+        public bool DownstreamUnlocked { get; init; }
+        public string? Message { get; init; }
+
+        public static ReconciliationOutcomeResult NoEffectRetryPermitted(MissionNodeId nodeId) =>
+            new()
+            {
+                IsSuccess = true,
+                Status = "NoEffectRetryPermitted",
+                NodeId = nodeId,
+                ResultingNodeState = MissionNodeState.Ready,
+                ReconciledEffect = NodeExecutionEffect.NoEffect,
+                RetryPermitted = true,
+                DownstreamUnlocked = false,
+                Message = "Reconciliation confirmed no side-effect occurred. Node returned to Ready state for safe retry."
+            };
+
+        public static ReconciliationOutcomeResult SucceededCompleted(MissionNodeId nodeId, bool downstreamUnlocked) =>
+            new()
+            {
+                IsSuccess = true,
+                Status = "EffectSucceededDuplicateRetryBlocked",
+                NodeId = nodeId,
+                ResultingNodeState = MissionNodeState.Succeeded,
+                ReconciledEffect = NodeExecutionEffect.EffectSucceeded,
+                RetryPermitted = false,
+                DownstreamUnlocked = downstreamUnlocked,
+                Message = "Reconciliation confirmed external side-effect succeeded. Duplicate retry prevented; node transitioned to Succeeded."
+            };
+
+        public static ReconciliationOutcomeResult FailedTerminal(MissionNodeId nodeId, bool retryPermitted) =>
+            new()
+            {
+                IsSuccess = true,
+                Status = retryPermitted ? "EffectFailedRetryPermitted" : "EffectFailedTerminal",
+                NodeId = nodeId,
+                ResultingNodeState = retryPermitted ? MissionNodeState.Ready : MissionNodeState.Failed,
+                ReconciledEffect = NodeExecutionEffect.EffectFailed,
+                RetryPermitted = retryPermitted,
+                DownstreamUnlocked = false,
+                Message = retryPermitted
+                    ? "Reconciliation confirmed side-effect failed. Governed retry permitted under policy retry budget."
+                    : "Reconciliation confirmed side-effect failed. Retry budget exhausted; node marked Failed."
+            };
+
+        public static ReconciliationOutcomeResult IdempotentNoop(MissionNodeId nodeId, MissionNodeState state, NodeExecutionEffect effect) =>
+            new()
+            {
+                IsSuccess = true,
+                Status = "IdempotentNoop",
+                NodeId = nodeId,
+                ResultingNodeState = state,
+                ReconciledEffect = effect,
+                Message = "Node was already reconciled; no state change applied."
+            };
+
+        public static ReconciliationOutcomeResult Rejected(string reason, MissionNodeId nodeId) =>
+            new()
+            {
+                IsSuccess = false,
+                Status = "ReconciliationRejected",
+                NodeId = nodeId,
+                Message = reason
+            };
+    }
+
     public interface IAgentFleetPipelineCoordinator
     {
         Task<IntegratedExecutionStepResult> ExecuteStepAsync(
             MissionGraph graph,
             TenantMissionPolicyContext tenantPolicy,
             Func<FencingEnvelope, Task<AgentOutcomeProposal>> agentExecutor,
+            CancellationToken ct = default);
+
+        Task<ReconciliationOutcomeResult> ReconcileNodeEffectAsync(
+            MissionGraph graph,
+            MissionNodeId nodeId,
+            NodeExecutionEffect terminalEffect,
+            TenantMissionPolicyContext tenantPolicy,
             CancellationToken ct = default);
     }
 }
