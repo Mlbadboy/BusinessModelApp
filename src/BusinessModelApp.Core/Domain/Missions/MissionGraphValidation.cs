@@ -56,7 +56,8 @@ namespace BusinessModelApp.Core.Domain.Missions
             // Execution nodes must define capability
             foreach (var node in graph.Nodes.Values)
             {
-                if (node.NodeType == MissionNodeType.Execution && node.RequiredCapabilityId == null)
+                if ((node.NodeType == MissionNodeType.Execution || node.NodeType == MissionNodeType.Execute) &&
+                    node.ExecutionPolicy.RequiredCapabilityId == null)
                 {
                     errors.Add($"Execution node '{node.NodeId}' must declare a required CapabilityId.");
                 }

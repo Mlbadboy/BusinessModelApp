@@ -281,6 +281,19 @@ builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientEven
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientEventSource, BusinessModelApp.Infrastructure.Runtime.Ambient.AmbientEventIngestionService>();
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientWatchdogScheduler, BusinessModelApp.Infrastructure.Runtime.Ambient.AmbientWatchdogScheduler>();
 
+// Phase 3 Batch 3.2: Dynamic Mission Graph & Governed DAG Compiler
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.ICycleDetector, BusinessModelApp.Infrastructure.Runtime.Missions.CycleDetector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IMissionPredicateEvaluator, BusinessModelApp.Infrastructure.Runtime.Missions.MissionPredicateEvaluator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IGraphValidator, BusinessModelApp.Infrastructure.Runtime.Missions.GraphValidator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IDagCompiler, BusinessModelApp.Infrastructure.Runtime.Missions.DagCompiler>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IGraphExpansionEngine, BusinessModelApp.Infrastructure.Runtime.Missions.GraphExpansionEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.INodeVerificationEngine, BusinessModelApp.Infrastructure.Runtime.Missions.NodeVerificationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.INodeAdmissionGate, BusinessModelApp.Infrastructure.Runtime.Missions.NodeAdmissionGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IEffectReconciliationEngine, BusinessModelApp.Infrastructure.Runtime.Missions.EffectReconciliationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IMissionGraphStore, BusinessModelApp.Infrastructure.Runtime.Missions.InMemoryMissionGraphStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IMissionGraphAuditLedger, BusinessModelApp.Infrastructure.Runtime.Missions.MissionGraphAuditLedger>();
+
+
 
 
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
