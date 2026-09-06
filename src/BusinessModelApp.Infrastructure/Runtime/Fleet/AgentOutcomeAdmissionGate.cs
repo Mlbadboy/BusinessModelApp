@@ -42,6 +42,10 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             }
 
             var envelope = proposal.Envelope;
+            if (envelope == null)
+            {
+                return OutcomeAdmissionResult.Rejected("Fencing envelope cannot be null.");
+            }
 
             // 0. Tenant Isolation check
             if (tenantPolicy != null && tenantPolicy.WorkspaceId != envelope.WorkspaceId)

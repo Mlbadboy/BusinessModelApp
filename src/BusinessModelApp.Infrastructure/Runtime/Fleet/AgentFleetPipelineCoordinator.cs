@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BusinessModelApp.Core.Domain.ExternalReality;
 using BusinessModelApp.Core.Domain.Missions;
 using BusinessModelApp.Core.Domain.Runtime;
 using BusinessModelApp.Core.Domain.Runtime.Fleet;
+using BusinessModelApp.Core.Domain.Runtime.Reputation;
 using BusinessModelApp.Core.Interfaces.Missions;
 using BusinessModelApp.Core.Interfaces.Runtime.Fleet;
+using BusinessModelApp.Core.Interfaces.Runtime.Reputation;
 
 namespace BusinessModelApp.Infrastructure.Runtime.Fleet
 {
@@ -17,17 +20,26 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
         private readonly IWorkerLeaseCoordinator _leaseCoordinator;
         private readonly IAgentOutcomeAdmissionGate _admissionGate;
         private readonly IMissionGraphAuditLedger _auditLedger;
+        private readonly IEmpiricalPerformanceEngine? _performanceEngine;
+        private readonly ICausalAttributionEngine? _attributionEngine;
+        private readonly ICalibrationEngine? _calibrationEngine;
 
         public AgentFleetPipelineCoordinator(
             IFleetOrchestrator fleetOrchestrator,
             IWorkerLeaseCoordinator leaseCoordinator,
             IAgentOutcomeAdmissionGate admissionGate,
-            IMissionGraphAuditLedger auditLedger)
+            IMissionGraphAuditLedger auditLedger,
+            IEmpiricalPerformanceEngine? performanceEngine = null,
+            ICausalAttributionEngine? attributionEngine = null,
+            ICalibrationEngine? calibrationEngine = null)
         {
             _fleetOrchestrator = fleetOrchestrator ?? throw new ArgumentNullException(nameof(fleetOrchestrator));
             _leaseCoordinator = leaseCoordinator ?? throw new ArgumentNullException(nameof(leaseCoordinator));
             _admissionGate = admissionGate ?? throw new ArgumentNullException(nameof(admissionGate));
             _auditLedger = auditLedger ?? throw new ArgumentNullException(nameof(auditLedger));
+            _performanceEngine = performanceEngine;
+            _attributionEngine = attributionEngine;
+            _calibrationEngine = calibrationEngine;
         }
 
         public async Task<IntegratedExecutionStepResult> ExecuteStepAsync(
@@ -171,6 +183,25 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                     Details = $"Worker '{worker.WorkerId.Value}' crashed during execution. Node '{node.NodeId.Value}' placed in Blocked state with UnknownEffect. Reconciliation required: {ex.Message}"
                 }, ct);
 
+                if (_performanceEngine != null)
+                {
+                    var crashToken = new ReputationEvidenceToken
+                    {
+                        WorkspaceId = graph.WorkspaceId,
+                        AttemptId = attemptId,
+                        GraphId = graph.GraphId,
+                        NodeId = node.NodeId,
+                        AgentDefinitionId = AgentDefinitionId.From(node.NodeType.ToString()),
+                        WorkerId = worker.WorkerId,
+                        CapabilityId = node.ExecutionPolicy.RequiredCapabilityId ?? new CapabilityId("default", "v1"),
+                        IsSuccessfulExecution = false,
+                        IsSecurityViolation = false,
+                        IsUnknownEffectCrash = true
+                    };
+                    crashToken = crashToken with { TokenHash = ReputationEvidenceToken.ComputeTokenHash(crashToken) };
+                    await _performanceEngine.ProcessEvidenceTokenAsync(crashToken, ct);
+                }
+
                 return IntegratedExecutionStepResult.Failed(
                     "WorkerCrashed",
                     node.FailureReason,
@@ -188,6 +219,28 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             if (!admission.IsAdmitted)
             {
                 await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
+
+                if (_performanceEngine != null)
+                {
+                    bool isSecurityFault = admission.FailureReason?.Contains("Fencing") == true ||
+                                          admission.FailureReason?.Contains("tampered") == true ||
+                                          admission.FailureReason?.Contains("Tenant") == true;
+                    var rejToken = new ReputationEvidenceToken
+                    {
+                        WorkspaceId = graph.WorkspaceId,
+                        AttemptId = attemptId,
+                        GraphId = graph.GraphId,
+                        NodeId = node.NodeId,
+                        AgentDefinitionId = AgentDefinitionId.From(node.NodeType.ToString()),
+                        WorkerId = worker.WorkerId,
+                        CapabilityId = node.ExecutionPolicy.RequiredCapabilityId ?? new CapabilityId("default", "v1"),
+                        IsSuccessfulExecution = false,
+                        IsSecurityViolation = isSecurityFault,
+                        IsUnknownEffectCrash = false
+                    };
+                    rejToken = rejToken with { TokenHash = ReputationEvidenceToken.ComputeTokenHash(rejToken) };
+                    await _performanceEngine.ProcessEvidenceTokenAsync(rejToken, ct);
+                }
 
                 return IntegratedExecutionStepResult.Failed(
                     "OutcomeAdmissionRejected",
@@ -220,6 +273,41 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                 EventType = "MissionGraphCheckpoint",
                 Details = $"Checkpoint committed for graph '{graph.GraphId.Value}' version '{graph.Version.Value}' after node '{node.NodeId.Value}' completion."
             }, ct);
+
+            // 10b. Emit Empirical Reputation Evidence Token (Batch 3.4)
+            if (_performanceEngine != null)
+            {
+                var attribution = _attributionEngine != null
+                    ? await _attributionEngine.EvaluateAttributionAsync(attemptId, node, proposal, node.VerificationResult ?? new NodeVerificationResult { IsVerified = true }, ct)
+                    : new CausalAttributionRecord { AttemptId = attemptId, Level = AttributionLevel.A4_Deterministic, AttributionConfidence = 1.0 };
+
+                var calibration = _calibrationEngine != null
+                    ? await _calibrationEngine.CalculateCalibrationAsync(attemptId, node, proposal, node.VerificationResult ?? new NodeVerificationResult { IsVerified = true }, StructuredDomainContext.Default, MarketRegimeState.Stable, ct)
+                    : new OutcomeCalibrationRecord { AttemptId = attemptId, NodeId = node.NodeId, GraphId = graph.GraphId, DiscrepancyScore = 0.0 };
+
+                var successToken = new ReputationEvidenceToken
+                {
+                    WorkspaceId = graph.WorkspaceId,
+                    AttemptId = attemptId,
+                    GraphId = graph.GraphId,
+                    NodeId = node.NodeId,
+                    AgentDefinitionId = AgentDefinitionId.From(node.NodeType.ToString()),
+                    WorkerId = worker.WorkerId,
+                    CapabilityId = node.ExecutionPolicy.RequiredCapabilityId ?? new CapabilityId("default", "v1"),
+                    Attribution = attribution,
+                    Calibration = calibration,
+                    VerifiedEvidenceHash = admission.VerifiedEvidenceHash ?? string.Empty,
+                    AuditEntryId = admission.AuditEntryId,
+                    IsSuccessfulExecution = admission.IsAdmitted && node.State == MissionNodeState.Succeeded,
+                    IsSecurityViolation = false,
+                    IsUnknownEffectCrash = false,
+                    TokensConsumed = proposal.TokensConsumed,
+                    CostUsdConsumed = proposal.CostUsdConsumed,
+                    Duration = TimeSpan.FromMilliseconds(200)
+                };
+                successToken = successToken with { TokenHash = ReputationEvidenceToken.ComputeTokenHash(successToken) };
+                await _performanceEngine.ProcessEvidenceTokenAsync(successToken, ct);
+            }
 
             if (node.State != MissionNodeState.Succeeded)
             {
