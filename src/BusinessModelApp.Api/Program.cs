@@ -240,6 +240,19 @@ builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IExecutionFirewall, 
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.ISagaExecutionEngine, BusinessModelApp.Infrastructure.Execution.SagaExecutionEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.IAutonomousMissionExecutor, BusinessModelApp.Infrastructure.Execution.AutonomousMissionExecutor>();
 
+// Phase 3 Batch 3.0: Runtime Kernel, Durable Execution & Governance Contracts
+builder.Services.AddSingleton<BusinessModelApp.Core.Domain.Runtime.IRuntimeStateTransitionValidator, BusinessModelApp.Core.Domain.Runtime.RuntimeStateTransitionValidator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeEventStore, BusinessModelApp.Infrastructure.Runtime.InMemoryRuntimeEventStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IEventBus, BusinessModelApp.Infrastructure.Runtime.InMemoryRuntimeEventBus>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeLeaseManager, BusinessModelApp.Infrastructure.Runtime.InMemoryRuntimeLeaseManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeCheckpointStore, BusinessModelApp.Infrastructure.Runtime.InMemoryRuntimeCheckpointStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeReplayEngine, BusinessModelApp.Infrastructure.Runtime.InMemoryRuntimeReplayEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.ISchedulerEngine, BusinessModelApp.Infrastructure.Runtime.EnterpriseSchedulerEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeAdmissionController, BusinessModelApp.Infrastructure.Runtime.RuntimeAdmissionController>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeCapabilityResolver, BusinessModelApp.Infrastructure.Runtime.RuntimeCapabilityResolver>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IPhase3TenantIsolationGuard, BusinessModelApp.Infrastructure.Runtime.Phase3TenantIsolationGuard>();
+builder.Services.AddSingleton<BusinessModelApp.Infrastructure.Runtime.IRuntimeAuditStore, BusinessModelApp.Infrastructure.Runtime.RuntimeAuditStore>();
+
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();
