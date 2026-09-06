@@ -293,6 +293,15 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IEffectR
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IMissionGraphStore, BusinessModelApp.Infrastructure.Runtime.Missions.InMemoryMissionGraphStore>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Missions.IMissionGraphAuditLedger, BusinessModelApp.Infrastructure.Runtime.Missions.MissionGraphAuditLedger>();
 
+// Phase 3 Batch 3.3: Agent Runtime Kernel & Fleet Orchestration
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentFleetStore, BusinessModelApp.Infrastructure.Runtime.Fleet.InMemoryAgentFleetStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IWorkerLeaseCoordinator, BusinessModelApp.Infrastructure.Runtime.Fleet.WorkerLeaseCoordinator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentOutcomeAdmissionGate, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentOutcomeAdmissionGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFleetOrchestrator, BusinessModelApp.Infrastructure.Runtime.Fleet.FleetOrchestrator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentDispatcher, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentDispatcher>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IChildMissionGate, BusinessModelApp.Infrastructure.Runtime.Fleet.ChildMissionGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFleetHealthMonitor, BusinessModelApp.Infrastructure.Runtime.Fleet.FleetHealthMonitor>();
+
 
 
 
