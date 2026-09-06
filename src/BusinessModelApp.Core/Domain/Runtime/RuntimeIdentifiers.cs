@@ -273,4 +273,156 @@ namespace BusinessModelApp.Core.Domain.Runtime
         public static RuntimeEventId From(string value) => new(Guid.Parse(value));
         public override string ToString() => Value.ToString();
     }
+
+    public readonly record struct BrainRequestId
+    {
+        public Guid Value { get; }
+
+        [JsonConstructor]
+        public BrainRequestId(Guid value)
+        {
+            if (value == Guid.Empty)
+                throw new ArgumentException("BrainRequestId cannot be Guid.Empty.", nameof(value));
+            Value = value;
+        }
+
+        public static BrainRequestId New() => new(Guid.NewGuid());
+        public static BrainRequestId From(Guid value) => new(value);
+        public static BrainRequestId From(string value) => new(Guid.Parse(value));
+        public override string ToString() => Value.ToString();
+    }
+
+    public readonly record struct InferenceRequestId
+    {
+        public Guid Value { get; }
+
+        [JsonConstructor]
+        public InferenceRequestId(Guid value)
+        {
+            if (value == Guid.Empty)
+                throw new ArgumentException("InferenceRequestId cannot be Guid.Empty.", nameof(value));
+            Value = value;
+        }
+
+        public static InferenceRequestId New() => new(Guid.NewGuid());
+        public static InferenceRequestId From(Guid value) => new(value);
+        public static InferenceRequestId From(string value) => new(Guid.Parse(value));
+        public override string ToString() => Value.ToString();
+    }
+
+    public readonly record struct InferenceAttemptId
+    {
+        public Guid Value { get; }
+
+        [JsonConstructor]
+        public InferenceAttemptId(Guid value)
+        {
+            if (value == Guid.Empty)
+                throw new ArgumentException("InferenceAttemptId cannot be Guid.Empty.", nameof(value));
+            Value = value;
+        }
+
+        public static InferenceAttemptId New() => new(Guid.NewGuid());
+        public static InferenceAttemptId From(Guid value) => new(value);
+        public static InferenceAttemptId From(string value) => new(Guid.Parse(value));
+        public override string ToString() => Value.ToString();
+    }
+
+    public readonly record struct ProviderId
+    {
+        public string Value { get; }
+
+        [JsonConstructor]
+        public ProviderId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("ProviderId cannot be null or whitespace.", nameof(value));
+            Value = value.Trim().ToLowerInvariant();
+        }
+
+        public static ProviderId From(string value) => new(value);
+        public override string ToString() => Value;
+    }
+
+    public readonly record struct ModelId
+    {
+        public string Value { get; }
+
+        [JsonConstructor]
+        public ModelId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("ModelId cannot be null or whitespace.", nameof(value));
+            Value = value.Trim().ToLowerInvariant();
+        }
+
+        public static ModelId From(string value) => new(value);
+        public override string ToString() => Value;
+    }
+
+    public readonly record struct ModelRouteId
+    {
+        public string Value { get; }
+
+        [JsonConstructor]
+        public ModelRouteId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("ModelRouteId cannot be null or whitespace.", nameof(value));
+            Value = value.Trim().ToLowerInvariant();
+        }
+
+        public static ModelRouteId From(string value) => new(value);
+        public override string ToString() => Value;
+    }
+
+    public readonly record struct ModelVersionId
+    {
+        public string Value { get; }
+
+        [JsonConstructor]
+        public ModelVersionId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("ModelVersionId cannot be null or whitespace.", nameof(value));
+            Value = value.Trim().ToLowerInvariant();
+        }
+
+        public static ModelVersionId From(string value) => new(value);
+        public override string ToString() => Value;
+    }
+
+    public readonly record struct InferencePolicyId
+    {
+        public string Value { get; }
+
+        [JsonConstructor]
+        public InferencePolicyId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new ArgumentException("InferencePolicyId cannot be null or whitespace.", nameof(value));
+            Value = value.Trim();
+        }
+
+        public static InferencePolicyId From(string value) => new(value);
+        public override string ToString() => Value;
+    }
+
+    public readonly record struct InferenceBudgetId
+    {
+        public Guid Value { get; }
+
+        [JsonConstructor]
+        public InferenceBudgetId(Guid value)
+        {
+            if (value == Guid.Empty)
+                throw new ArgumentException("InferenceBudgetId cannot be Guid.Empty.", nameof(value));
+            Value = value;
+        }
+
+        public static InferenceBudgetId New() => new(Guid.NewGuid());
+        public static InferenceBudgetId From(Guid value) => new(value);
+        public static InferenceBudgetId From(string value) => new(Guid.Parse(value));
+        public override string ToString() => Value.ToString();
+    }
 }

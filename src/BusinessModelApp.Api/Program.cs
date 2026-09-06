@@ -253,6 +253,21 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IRuntimeC
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IPhase3TenantIsolationGuard, BusinessModelApp.Infrastructure.Runtime.Phase3TenantIsolationGuard>();
 builder.Services.AddSingleton<BusinessModelApp.Infrastructure.Runtime.IRuntimeAuditStore, BusinessModelApp.Infrastructure.Runtime.RuntimeAuditStore>();
 
+// Phase 3 Batch 3.0: Sovereign Brain Fabric & OmniRoute Gateway
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IProviderCircuitBreaker, BusinessModelApp.Infrastructure.Runtime.BrainFabric.ProviderCircuitBreaker>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IDataEgressClassifier, BusinessModelApp.Infrastructure.Runtime.BrainFabric.DataEgressClassifier>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IModelEvaluationGate, BusinessModelApp.Infrastructure.Runtime.BrainFabric.ModelEvaluationGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IInferenceBudgetGuard, BusinessModelApp.Infrastructure.Runtime.BrainFabric.InferenceBudgetGuard>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IContextOptimizer, BusinessModelApp.Infrastructure.Runtime.BrainFabric.ContextOptimizer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IInferenceAuditLedger, BusinessModelApp.Infrastructure.Runtime.BrainFabric.InferenceAuditLedger>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.ILocalInferenceGateway, BusinessModelApp.Infrastructure.Runtime.BrainFabric.LocalInferenceGateway>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IOmniRouteGateway, BusinessModelApp.Infrastructure.Runtime.BrainFabric.OmniRouteInferenceGateway>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IOpenRouterGateway, BusinessModelApp.Infrastructure.Runtime.BrainFabric.OpenRouterInferenceGateway>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IDirectApiGateway, BusinessModelApp.Infrastructure.Runtime.BrainFabric.DirectApiInferenceGateway>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IModelRouter, BusinessModelApp.Infrastructure.Runtime.BrainFabric.ModelRouter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IBrainDirector, BusinessModelApp.Infrastructure.Runtime.BrainFabric.BrainDirector>();
+
+
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IDeterministicStrategySimulator, BusinessModelApp.Infrastructure.Strategy.DeterministicStrategySimulator>();
