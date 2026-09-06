@@ -22,6 +22,7 @@ const MarketRadar = lazy(() => import('./pages/MarketRadar'));
 const SecurityCommandCenter = lazy(() => import('./pages/SecurityCommandCenter'));
 const ExecutionCommandCenter = lazy(() => import('./pages/ExecutionCommandCenter'));
 const AIBrainSettings = lazy(() => import('./pages/Settings/AIBrainSettings'));
+const BusinessConstraints = lazy(() => import('./pages/Settings/BusinessConstraints'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -191,6 +192,15 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <AIBrainSettings />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/business-constraints"
+            element={
+              <ProtectedRoute>
+                <BusinessConstraints />
               </ProtectedRoute>
             }
           />

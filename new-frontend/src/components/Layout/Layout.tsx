@@ -47,6 +47,7 @@ import Radar from '@mui/icons-material/Radar';
 import GavelRounded from '@mui/icons-material/GavelRounded';
 import SecurityOutlined from '@mui/icons-material/SecurityOutlined';
 import PsychologyAlt from '@mui/icons-material/PsychologyAlt';
+import AccountBalance from '@mui/icons-material/AccountBalance';
 import { useAuth } from '../../hooks/useAuth';
 import { CommandBarModal } from '../command/CommandBarModal';
 import { useAIControlCenter } from '../../hooks/useAIControlCenter';
@@ -158,6 +159,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       items: [
         { text: 'AI Control Center', icon: <Tune />, path: '/ai-control-center' },
         { text: 'AI Brain Fabric', icon: <PsychologyAlt />, path: '/settings/ai-brain' },
+        { text: 'Business Constraints', icon: <AccountBalance />, path: '/settings/business-constraints' },
       ],
     },
   ];

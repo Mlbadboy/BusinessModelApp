@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 using BusinessModelApp.Core.Domain.ExternalReality;
 using BusinessModelApp.Core.Domain.Missions;
 using BusinessModelApp.Core.Domain.Runtime;
+using BusinessModelApp.Core.Domain.Runtime.Constraints;
 using BusinessModelApp.Core.Domain.Runtime.Fleet;
 using BusinessModelApp.Core.Domain.Runtime.Reputation;
 using BusinessModelApp.Core.Interfaces.Missions;
+using BusinessModelApp.Core.Interfaces.Runtime.Constraints;
 using BusinessModelApp.Core.Interfaces.Runtime.Fleet;
 using BusinessModelApp.Core.Interfaces.Runtime.Reputation;
 
@@ -23,6 +25,8 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
         private readonly IEmpiricalPerformanceEngine? _performanceEngine;
         private readonly ICausalAttributionEngine? _attributionEngine;
         private readonly ICalibrationEngine? _calibrationEngine;
+        private readonly IBusinessConstraintEngine? _constraintEngine;
+        private readonly IResourceReservationEngine? _reservationEngine;
 
         public AgentFleetPipelineCoordinator(
             IFleetOrchestrator fleetOrchestrator,
@@ -31,7 +35,9 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             IMissionGraphAuditLedger auditLedger,
             IEmpiricalPerformanceEngine? performanceEngine = null,
             ICausalAttributionEngine? attributionEngine = null,
-            ICalibrationEngine? calibrationEngine = null)
+            ICalibrationEngine? calibrationEngine = null,
+            IBusinessConstraintEngine? constraintEngine = null,
+            IResourceReservationEngine? reservationEngine = null)
         {
             _fleetOrchestrator = fleetOrchestrator ?? throw new ArgumentNullException(nameof(fleetOrchestrator));
             _leaseCoordinator = leaseCoordinator ?? throw new ArgumentNullException(nameof(leaseCoordinator));
@@ -40,6 +46,8 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             _performanceEngine = performanceEngine;
             _attributionEngine = attributionEngine;
             _calibrationEngine = calibrationEngine;
+            _constraintEngine = constraintEngine;
+            _reservationEngine = reservationEngine;
         }
 
         public async Task<IntegratedExecutionStepResult> ExecuteStepAsync(
@@ -80,10 +88,54 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                     nodeState: MissionNodeState.Killed);
             }
 
+            // 2b. Stage 2 Interception: Resource Reservation & Operational Feasibility Check
+            ReservationId? activeReservationId = null;
+            if (_reservationEngine != null && node.ExecutionPolicy.MaxCostUsd > 0m)
+            {
+                double requiredAmountINR = (double)node.ExecutionPolicy.MaxCostUsd * 85.0;
+                var resKey = $"{graph.GraphId.Value}_{node.NodeId.Value}_budget";
+                var reservation = await _reservationEngine.RequestReservationAsync(
+                    graph.WorkspaceId,
+                    MissionId.From(graph.GraphId.Value),
+                    node.NodeId,
+                    ResourceClass.Budget,
+                    requiredAmountINR,
+                    resKey,
+                    TimeSpan.FromMinutes(15),
+                    ct);
+
+                if (!reservation.IsGranted)
+                {
+                    node.State = MissionNodeState.Blocked;
+                    node.FailureReason = $"Stage 2 dispatch halted: Resource reservation denied ({reservation.FailureReason}).";
+
+                    await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
+                    {
+                        GraphId = graph.GraphId,
+                        Version = graph.Version,
+                        EventType = "ResourceReservationDeniedHalt",
+                        Details = node.FailureReason
+                    }, ct);
+
+                    return IntegratedExecutionStepResult.Failed(
+                        "ResourceReservationDenied",
+                        node.FailureReason,
+                        node.NodeId,
+                        nodeState: MissionNodeState.Blocked);
+                }
+
+                activeReservationId = reservation.Reservation?.ReservationId;
+            }
+
             // 3. Fleet Selection & Dispatch
             var worker = await _fleetOrchestrator.DispatchNodeAsync(graph, node, ct);
             if (worker == null)
             {
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                }
+
                 return IntegratedExecutionStepResult.Failed(
                     "NoHealthyWorkerAvailable",
                     "No healthy worker available in designated pool.",
@@ -105,6 +157,11 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
 
             if (!leaseGrant.IsGranted || leaseGrant.Lease == null)
             {
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                }
+
                 return IntegratedExecutionStepResult.Failed(
                     "LeaseDenied",
                     leaseGrant.FailureReason ?? "Failed to acquire node execution lease.",
@@ -140,6 +197,11 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                 node.State = MissionNodeState.Failed;
                 await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
 
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                }
+
                 await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
                 {
                     GraphId = graph.GraphId,
@@ -174,6 +236,11 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
                 node.LastEffect = NodeExecutionEffect.UnknownEffect;
                 node.FailureReason = $"Worker crashed during execution. Effect reconciliation required before retry or progression: {ex.Message}";
                 await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
+
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                }
 
                 await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
                 {
@@ -220,6 +287,11 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             {
                 await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
 
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                }
+
                 if (_performanceEngine != null)
                 {
                     bool isSecurityFault = admission.FailureReason?.Contains("Fencing") == true ||
@@ -256,6 +328,57 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
 
             // 9. Release Lease
             await _leaseCoordinator.ReleaseLeaseAsync(lease.LeaseId, fenceToken, ct);
+
+            // 9b. Stage 3 Interception: Pre-Firewall Digital Twin Simulation & Feasibility Check
+            if (_constraintEngine != null)
+            {
+                var effectProposal = new PreFlightEffectProposal
+                {
+                    CashOutflowINR = (double)proposal.CostUsdConsumed * 85.0,
+                    ExpectedRevenueINR = 0.0,
+                    ProjectedBurnRateChangeINR = 0.0,
+                    ActionCategory = node.NodeType.ToString()
+                };
+
+                var feasibility = await _constraintEngine.EvaluateFeasibilityAsync(graph.WorkspaceId, effectProposal, null, ct);
+                if (!feasibility.IsFeasible)
+                {
+                    node.State = MissionNodeState.Blocked;
+                    node.FailureReason = $"Stage 3 pre-firewall simulation blocked by business constraint: {feasibility.SummaryRationale}";
+
+                    if (_reservationEngine != null && activeReservationId.HasValue)
+                    {
+                        await _reservationEngine.ReleaseReservationAsync(activeReservationId.Value, ct);
+                    }
+
+                    await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry
+                    {
+                        GraphId = graph.GraphId,
+                        Version = graph.Version,
+                        EventType = "PreFirewallSimulationViolationHalt",
+                        Details = $"Violations: {string.Join("; ", feasibility.HardViolations)}"
+                    }, ct);
+
+                    return IntegratedExecutionStepResult.Failed(
+                        "PreFirewallConstraintBlocked",
+                        node.FailureReason,
+                        node.NodeId,
+                        worker.WorkerId,
+                        lease.LeaseId,
+                        fenceToken,
+                        attemptId,
+                        MissionNodeState.Blocked);
+                }
+
+                if (_reservationEngine != null && activeReservationId.HasValue)
+                {
+                    await _reservationEngine.CommitReservationAsync(activeReservationId.Value, Math.Max((double)proposal.CostUsdConsumed * 85.0, 1.0), ct);
+                }
+            }
+            else if (_reservationEngine != null && activeReservationId.HasValue)
+            {
+                await _reservationEngine.CommitReservationAsync(activeReservationId.Value, Math.Max((double)proposal.CostUsdConsumed * 85.0, 1.0), ct);
+            }
 
             // 10. Audit & Checkpoint Recording
             await _auditLedger.RecordEventAsync(new MissionGraphAuditEntry

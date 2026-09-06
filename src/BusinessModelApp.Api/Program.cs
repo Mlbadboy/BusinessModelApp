@@ -300,8 +300,23 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAg
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFleetOrchestrator, BusinessModelApp.Infrastructure.Runtime.Fleet.FleetOrchestrator>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentDispatcher, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentDispatcher>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IChildMissionGate, BusinessModelApp.Infrastructure.Runtime.Fleet.ChildMissionGate>();
-builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IFleetHealthMonitor, BusinessModelApp.Infrastructure.Runtime.Fleet.FleetHealthMonitor>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Fleet.IAgentFleetPipelineCoordinator, BusinessModelApp.Infrastructure.Runtime.Fleet.AgentFleetPipelineCoordinator>();
+
+// Phase 3 Batch 3.4: Empirical Performance Metrology & Dynamic Reputation
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reputation.IEmpiricalPerformanceEngine, BusinessModelApp.Infrastructure.Runtime.Reputation.EmpiricalPerformanceEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reputation.ICausalAttributionEngine, BusinessModelApp.Infrastructure.Runtime.Reputation.CausalAttributionEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reputation.ICalibrationEngine, BusinessModelApp.Infrastructure.Runtime.Reputation.CalibrationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reputation.IReputationStore, BusinessModelApp.Infrastructure.Runtime.Reputation.InMemoryReputationStore>();
+
+// Phase 3 Batch 3.5: Business Constraint Sovereignty & Strategic Optimization Engine
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IBusinessConstraintStore, BusinessModelApp.Infrastructure.Runtime.Constraints.InMemoryBusinessConstraintStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IConstraintFreshnessEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.ConstraintFreshnessEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IStrategicRegimeEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.StrategicRegimeEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IResourceReservationEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.ResourceReservationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IPreFlightSimulationEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.PreFlightSimulationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.ISafeAlternativeEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.SafeAlternativeEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IBusinessConstraintEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.BusinessConstraintEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IStrategicArbitrationEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.StrategicArbitrationEngine>();
 
 
 
