@@ -267,6 +267,21 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IDirectAp
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IModelRouter, BusinessModelApp.Infrastructure.Runtime.BrainFabric.ModelRouter>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.IBrainDirector, BusinessModelApp.Infrastructure.Runtime.BrainFabric.BrainDirector>();
 
+// Phase 3 Batch 3.1: Ambient Responsibility Engine
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityRegistry, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityEvidenceGate, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityEvidenceGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityCorrelationEngine, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityCorrelationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityDebouncer, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityDebounceEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilitySeverityScorer, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilitySeverityScorer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityEscalator, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityEscalationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityAuditLedger, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityAuditLedger>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityDetector, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityDetectionEngine>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IResponsibilityMissionFactory, BusinessModelApp.Infrastructure.Runtime.Ambient.ResponsibilityMissionFactory>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientEventNormalizer, BusinessModelApp.Infrastructure.Runtime.Ambient.AmbientEventIngestionService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientEventSource, BusinessModelApp.Infrastructure.Runtime.Ambient.AmbientEventIngestionService>();
+builder.Services.AddScoped<BusinessModelApp.Core.Interfaces.Ambient.IAmbientWatchdogScheduler, BusinessModelApp.Infrastructure.Runtime.Ambient.AmbientWatchdogScheduler>();
+
+
 
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();
