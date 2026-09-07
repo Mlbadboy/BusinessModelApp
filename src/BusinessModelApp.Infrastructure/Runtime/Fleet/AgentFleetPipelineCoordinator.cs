@@ -27,6 +27,9 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
         private readonly ICalibrationEngine? _calibrationEngine;
         private readonly IBusinessConstraintEngine? _constraintEngine;
         private readonly IResourceReservationEngine? _reservationEngine;
+        private readonly BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerFabric? _workerFabric;
+
+        public BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerFabric? WorkerFabric => _workerFabric;
 
         public AgentFleetPipelineCoordinator(
             IFleetOrchestrator fleetOrchestrator,
@@ -37,7 +40,8 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             ICausalAttributionEngine? attributionEngine = null,
             ICalibrationEngine? calibrationEngine = null,
             IBusinessConstraintEngine? constraintEngine = null,
-            IResourceReservationEngine? reservationEngine = null)
+            IResourceReservationEngine? reservationEngine = null,
+            BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerFabric? workerFabric = null)
         {
             _fleetOrchestrator = fleetOrchestrator ?? throw new ArgumentNullException(nameof(fleetOrchestrator));
             _leaseCoordinator = leaseCoordinator ?? throw new ArgumentNullException(nameof(leaseCoordinator));
@@ -48,6 +52,7 @@ namespace BusinessModelApp.Infrastructure.Runtime.Fleet
             _calibrationEngine = calibrationEngine;
             _constraintEngine = constraintEngine;
             _reservationEngine = reservationEngine;
+            _workerFabric = workerFabric;
         }
 
         public async Task<IntegratedExecutionStepResult> ExecuteStepAsync(

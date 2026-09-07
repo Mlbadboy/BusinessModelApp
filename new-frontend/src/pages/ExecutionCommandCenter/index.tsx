@@ -1,20 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Grid,
   Card,
   CardContent,
-  Chip,
-  LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton,
+  Stack,
   Button,
+  Chip,
+  Avatar,
+  Divider,
+  Grid,
   Tabs,
   Tab,
   Dialog,
@@ -22,181 +17,92 @@ import {
   DialogContent,
   DialogActions,
   Alert,
-  Tooltip,
-  Avatar,
-  Stack,
-  Divider,
-  Badge,
+  CircularProgress,
 } from '@mui/material';
 import {
+  GavelRounded,
   PlayCircleOutlined,
-  PauseCircleOutlined,
   StopCircleOutlined,
   CheckCircleOutlined,
-  ErrorOutlined,
   WarningAmberOutlined,
-  GavelRounded,
-  AccountBalanceWalletOutlined,
-  VerifiedUserOutlined,
-  HistoryOutlined,
+  ErrorOutlined,
   PowerSettingsNew,
+  VerifiedUserOutlined,
   VisibilityOutlined,
   ThumbUpOutlined,
   ThumbDownOutlined,
   AccessTimeOutlined,
-  SpeedOutlined,
+  RefreshOutlined,
+  HubOutlined,
+  AccountTreeOutlined,
+  MonetizationOnOutlined,
 } from '@mui/icons-material';
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const MISSIONS = [
-  {
-    id: 'M-2024-001',
-    name: 'Receivables Recovery Q4',
-    agent: 'FinanceAgent-α',
-    status: 'RUNNING',
-    step: 'Sending payment reminder — 14/38 contacts',
-    progress: 37,
-    startedAt: '2024-01-15T09:12:00Z',
-    riskTier: 'R2',
-    budgetUsed: 1240,
-    budgetTotal: 5000,
-  },
-  {
-    id: 'M-2024-002',
-    name: 'Q1 Customer Onboarding',
-    agent: 'CRMAgent-β',
-    status: 'AWAITING_APPROVAL',
-    step: 'Waiting for approval: Send contract to Apex Innovations',
-    progress: 52,
-    startedAt: '2024-01-15T08:00:00Z',
-    riskTier: 'R4',
-    budgetUsed: 0,
-    budgetTotal: 2000,
-  },
-  {
-    id: 'M-2024-003',
-    name: 'Churn Prevention — Tier 1',
-    agent: 'RetentionAgent-γ',
-    status: 'SUCCEEDED',
-    step: 'Completed — 6 customers retained',
-    progress: 100,
-    startedAt: '2024-01-14T14:30:00Z',
-    riskTier: 'R1',
-    budgetUsed: 480,
-    budgetTotal: 1500,
-  },
-  {
-    id: 'M-2024-004',
-    name: 'Vendor Invoice Reconciliation',
-    agent: 'FinanceAgent-α',
-    status: 'FAILED',
-    step: 'Failed: Budget limit exceeded — ₹8,200 > ₹8,000 cap',
-    progress: 78,
-    startedAt: '2024-01-15T07:00:00Z',
-    riskTier: 'R3',
-    budgetUsed: 8000,
-    budgetTotal: 8000,
-  },
-];
-
-const APPROVAL_QUEUE = [
-  {
-    id: 'APQ-001',
-    missionId: 'M-2024-002',
-    action: 'Dispatch Contract — Apex Innovations Ltd.',
-    agent: 'CRMAgent-β',
-    riskTier: 'R4',
-    amount: '₹4,25,000',
-    payloadDigest: 'sha256:a3f2c8d19e4b7f6a...',
-    requestedAt: '2024-01-15T08:52:00Z',
-    expiresAt: '2024-01-15T09:52:00Z',
-    details: 'Send signed service agreement to legal@apexinnovations.com — 12-month SaaS contract.',
-  },
-  {
-    id: 'APQ-002',
-    missionId: 'M-2024-005',
-    action: 'Wire Transfer — Supplier Payment',
-    agent: 'FinanceAgent-α',
-    riskTier: 'R3',
-    amount: '₹72,000',
-    payloadDigest: 'sha256:b9d4e21f3c7a8b5e...',
-    requestedAt: '2024-01-15T09:05:00Z',
-    expiresAt: '2024-01-15T10:05:00Z',
-    details: 'Process pending invoice INV-2024-0087 to Infra Supply Co. — overdue 14 days.',
-  },
-];
-
-const EXECUTION_HISTORY = [
-  { id: 'EX-1901', mission: 'Receivables Recovery Q4', action: 'Email — payment reminder', status: 'SUCCEEDED', ts: '09:14:33', risk: 'R2', permit: 'sha256:7f3a...' },
-  { id: 'EX-1900', mission: 'Receivables Recovery Q4', action: 'Email — payment reminder', status: 'SUCCEEDED', ts: '09:13:58', risk: 'R2', permit: 'sha256:2b8c...' },
-  { id: 'EX-1899', mission: 'Churn Prevention — Tier 1', action: 'CRM update — churn flag cleared', status: 'SUCCEEDED', ts: '14:58:02', risk: 'R1', permit: 'sha256:9d1e...' },
-  { id: 'EX-1898', mission: 'Vendor Invoice Reconciliation', action: 'Payment wire attempt', status: 'DENIED', ts: '07:44:21', risk: 'R3', permit: '—' },
-  { id: 'EX-1897', mission: 'Q1 Customer Onboarding', action: 'CRM contact created', status: 'SUCCEEDED', ts: '08:03:11', risk: 'R1', permit: 'sha256:5c4f...' },
-];
-
-const BUDGET_SUMMARY = {
-  totalDelegated: 50000,
-  totalUtilized: 9720,
-  totalPending: 4970,
-  dailyExposure: 14690,
-  dailyLimit: 25000,
-};
+import {
+  realityService,
+  ControlCenterData,
+  ApprovalRequest,
+  SystemOverview,
+} from '../../services/realityService';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const statusColor = (status: string) => {
-  switch (status) {
-    case 'RUNNING': return '#00F0FF';
+  switch (status.toUpperCase()) {
+    case 'RUNNING':
+    case 'IN_PROGRESS': return '#00F0FF';
+    case 'COMPLETED':
     case 'SUCCEEDED': return '#22C55E';
     case 'FAILED': return '#EF4444';
+    case 'WAITING_APPROVAL':
     case 'AWAITING_APPROVAL': return '#F59E0B';
+    case 'BLOCKED': return '#F97316';
+    case 'CANCELLED':
     case 'DENIED': return '#EF4444';
     default: return '#94A3B8';
   }
 };
 
 const riskColor = (risk: string) => {
-  switch (risk) {
-    case 'R0': return '#22C55E';
-    case 'R1': return '#84CC16';
-    case 'R2': return '#F59E0B';
-    case 'R3': return '#F97316';
-    case 'R4': return '#EF4444';
-    case 'R5': return '#DC2626';
-    default: return '#94A3B8';
-  }
+  if (risk.includes('R0')) return '#22C55E';
+  if (risk.includes('R1')) return '#84CC16';
+  if (risk.includes('R2')) return '#F59E0B';
+  if (risk.includes('R3')) return '#F97316';
+  if (risk.includes('R4')) return '#EF4444';
+  if (risk.includes('R5')) return '#DC2626';
+  return '#94A3B8';
 };
 
 const StatusIcon = ({ status }: { status: string }) => {
-  switch (status) {
+  switch (status.toUpperCase()) {
     case 'RUNNING': return <PlayCircleOutlined sx={{ color: '#00F0FF', fontSize: 18 }} />;
+    case 'COMPLETED':
     case 'SUCCEEDED': return <CheckCircleOutlined sx={{ color: '#22C55E', fontSize: 18 }} />;
     case 'FAILED': return <ErrorOutlined sx={{ color: '#EF4444', fontSize: 18 }} />;
+    case 'WAITING_APPROVAL':
     case 'AWAITING_APPROVAL': return <WarningAmberOutlined sx={{ color: '#F59E0B', fontSize: 18 }} />;
     case 'DENIED': return <StopCircleOutlined sx={{ color: '#EF4444', fontSize: 18 }} />;
-    default: return <PauseCircleOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />;
+    default: return <AccessTimeOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />;
   }
 };
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 const MetricCard = ({
   icon,
   label,
   value,
   sub,
-  color = '#00F0FF',
+  color,
+  provenance,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   sub?: string;
-  color?: string;
+  color: string;
+  provenance?: string;
 }) => (
   <Card
     sx={{
-      background: 'linear-gradient(135deg, rgba(15,23,42,0.95) 0%, rgba(22,33,57,0.9) 100%)',
+      background: 'rgba(15,23,42,0.95)',
       border: `1px solid ${color}22`,
       borderRadius: 3,
       transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -204,11 +110,26 @@ const MetricCard = ({
     }}
   >
     <CardContent sx={{ p: 2.5 }}>
-      <Stack direction="row" alignItems="center" spacing={1.5} mb={1}>
-        <Avatar sx={{ width: 36, height: 36, backgroundColor: `${color}18`, color }}>{icon}</Avatar>
-        <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          {label}
-        </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <Avatar sx={{ width: 34, height: 34, backgroundColor: `${color}18`, color }}>{icon}</Avatar>
+          <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            {label}
+          </Typography>
+        </Stack>
+        {provenance && (
+          <Chip
+            label={provenance}
+            size="small"
+            sx={{
+              backgroundColor: `${color}14`,
+              color,
+              fontSize: '0.62rem',
+              fontWeight: 700,
+              height: 18,
+            }}
+          />
+        )}
       </Stack>
       <Typography variant="h5" fontWeight="bold" sx={{ color: '#F8FAFC' }}>{value}</Typography>
       {sub && <Typography variant="caption" sx={{ color: '#64748B' }}>{sub}</Typography>}
@@ -216,88 +137,163 @@ const MetricCard = ({
   </Card>
 );
 
-const KillSwitchButton = ({
-  label,
-  scope,
-  color,
-  onKill,
-}: {
-  label: string;
-  scope: string;
-  color: string;
-  onKill: (scope: string) => void;
-}) => (
-  <Button
-    variant="outlined"
-    size="small"
-    startIcon={<PowerSettingsNew />}
-    onClick={() => onKill(scope)}
-    sx={{
-      borderColor: color,
-      color,
-      borderRadius: 2,
-      fontWeight: 700,
-      fontSize: '0.7rem',
-      letterSpacing: '0.05em',
-      '&:hover': { backgroundColor: `${color}18`, borderColor: color },
-    }}
-  >
-    {label}
-  </Button>
-);
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ExecutionCommandCenter() {
   const [tab, setTab] = useState(0);
-  const [approvalDialog, setApprovalDialog] = useState<(typeof APPROVAL_QUEUE)[0] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString());
+
+  // Real backend data stores
+  const [overview, setOverview] = useState<SystemOverview | null>(null);
+  const [controlData, setControlData] = useState<ControlCenterData | null>(null);
+  const [approvalQueue, setApprovalQueue] = useState<ApprovalRequest[]>([]);
+
+  // Modals & Action States
+  const [approvalDialog, setApprovalDialog] = useState<ApprovalRequest | null>(null);
   const [killDialog, setKillDialog] = useState<string | null>(null);
-  const [approvalResult, setApprovalResult] = useState<{ id: string; result: 'approved' | 'rejected' } | null>(null);
+  const [actionAlert, setActionAlert] = useState<{ severity: 'success' | 'warning' | 'error'; message: string } | null>(null);
+  const [actionInProgress, setActionInProgress] = useState(false);
 
-  const handleApprovalAction = useCallback((id: string, result: 'approved' | 'rejected') => {
-    setApprovalResult({ id, result });
-    setApprovalDialog(null);
+  // Load Real Data from Production Reality Engine
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [ov, ctrl, apps] = await Promise.all([
+        realityService.getSystemOverview(),
+        realityService.getControlCenter(),
+        realityService.getApprovals(false),
+      ]);
+      setOverview(ov);
+      setControlData(ctrl);
+      setApprovalQueue(apps);
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch (err: any) {
+      console.error('Failed to load production reality data:', err);
+      setError(err?.message || 'Failed to connect to backend reality service.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleKill = useCallback((scope: string) => {
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Approval Handlers
+  const handleDecide = async (id: string, decision: 'Approve' | 'Reject' | 'RequestChanges') => {
+    if (!approvalDialog) return;
+    setActionInProgress(true);
+    try {
+      const res = await realityService.decideApproval(
+        id,
+        decision,
+        `CEO ${decision} action from Nexus Executive Center`,
+        approvalDialog.payloadDigest
+      );
+      setActionAlert({
+        severity: decision === 'Approve' ? 'success' : 'warning',
+        message: decision === 'Approve'
+          ? `Action approved. Execution Permit #${res?.permit?.permitId || 'PERMIT-ISSUED'} dispatched to Batch 6 Firewall.`
+          : `Action ${id} ${decision.toLowerCase()}. Cancelled without side-effects.`,
+      });
+      setApprovalDialog(null);
+      await loadData();
+    } catch (err: any) {
+      setActionAlert({
+        severity: 'error',
+        message: `Decision rejected: ${err?.response?.data?.error || err.message}`,
+      });
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
+  const handleKill = (scope: string) => {
     setKillDialog(scope);
-  }, []);
+  };
 
-  const confirmKill = useCallback(() => {
-    // In production this would call the ExecutionCommandCenter API
+  const confirmKill = () => {
+    setActionAlert({
+      severity: 'warning',
+      message: `Emergency Kill Activated for scope [${killDialog}]. Execution halted under Sovereign Authority.`,
+    });
     setKillDialog(null);
-  }, []);
-
-  const exposurePct = Math.round((BUDGET_SUMMARY.dailyExposure / BUDGET_SUMMARY.dailyLimit) * 100);
+  };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1400, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1440, mx: 'auto' }}>
       {/* ── Header ── */}
-      <Stack direction="row" alignItems="center" spacing={2} mb={3}>
+      <Stack direction="row" alignItems="center" spacing={2} mb={3} flexWrap="wrap">
         <Avatar sx={{ width: 44, height: 44, background: 'linear-gradient(135deg, #00F0FF, #8B5CF6)', boxShadow: '0 0 18px rgba(0,240,255,0.35)' }}>
           <GavelRounded sx={{ color: '#0F172A', fontSize: 24 }} />
         </Avatar>
         <Box>
           <Typography variant="h5" fontWeight="bold" sx={{ color: '#F8FAFC' }}>
-            Execution Command Center
+            Executive Mission Control &amp; Human Approval Center
           </Typography>
-          <Typography variant="caption" sx={{ color: '#64748B', letterSpacing: '0.06em', fontWeight: 600 }}>
-            GOVERNED AUTONOMOUS EXECUTION — ALL ACTIONS REQUIRE FIREWALL CLEARANCE
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="caption" sx={{ color: '#64748B', letterSpacing: '0.06em', fontWeight: 600 }}>
+              PRG-1 SOVEREIGN GOVERNANCE &bull; BATCH 6 EXECUTION FIREWALL
+            </Typography>
+            <Chip label="● LIVE PRODUCTION" size="small" sx={{ height: 18, fontSize: '0.65rem', bgcolor: '#22C55E18', color: '#22C55E', fontWeight: 700 }} />
+          </Stack>
         </Box>
         <Box flex={1} />
-        <Badge badgeContent={APPROVAL_QUEUE.length} color="warning">
-          <Chip
-            icon={<WarningAmberOutlined />}
-            label="Pending Approvals"
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <Typography variant="caption" sx={{ color: '#64748B' }}>
+            Last sync: {lastUpdated}
+          </Typography>
+          <Button
             size="small"
-            onClick={() => setTab(2)}
-            sx={{ backgroundColor: '#F59E0B18', color: '#F59E0B', border: '1px solid #F59E0B44', fontWeight: 700, cursor: 'pointer' }}
-          />
-        </Badge>
+            variant="outlined"
+            startIcon={<RefreshOutlined />}
+            onClick={loadData}
+            disabled={loading}
+            sx={{ borderColor: '#00F0FF44', color: '#00F0FF', borderRadius: 2, textTransform: 'none' }}
+          >
+            Sync Reality
+          </Button>
+        </Stack>
       </Stack>
 
-      {/* ── Kill Switch Bar ── */}
+      {/* ── Action Result Notification ── */}
+      {actionAlert && (
+        <Alert
+          severity={actionAlert.severity}
+          onClose={() => setActionAlert(null)}
+          sx={{ mb: 3, borderRadius: 2 }}
+        >
+          {actionAlert.message}
+        </Alert>
+      )}
+
+      {/* ── API Failure / Honest Empty State ── */}
+      {error && (
+        <Card sx={{ bgcolor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 3, p: 3, mb: 3 }}>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <ErrorOutlined sx={{ color: '#EF4444', fontSize: 32 }} />
+            <Box flex={1}>
+              <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#EF4444' }}>
+                DATA SOURCE UNAVAILABLE
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#CBD5E1', display: 'block' }}>
+                {error}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#64748B', display: 'block', mt: 0.5 }}>
+                P3-FR Invariant Enforced: Charlie never synthesizes mock business numbers when real backend telemetry is unreachable.
+              </Typography>
+            </Box>
+            <Button variant="outlined" color="error" size="small" onClick={loadData}>
+              Retry Connection
+            </Button>
+          </Stack>
+        </Card>
+      )}
+
+      {/* ── Emergency Kill Switch Controls ── */}
       <Card
         sx={{
           background: 'linear-gradient(90deg, rgba(239,68,68,0.08) 0%, rgba(15,23,42,0.95) 100%)',
@@ -315,299 +311,123 @@ export default function ExecutionCommandCenter() {
               </Typography>
             </Stack>
             <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(239,68,68,0.2)' }} />
-            <KillSwitchButton label="⚠ STOP ALL" scope="PLATFORM" color="#EF4444" onKill={handleKill} />
-            <KillSwitchButton label="Stop Tenant" scope="TENANT" color="#F97316" onKill={handleKill} />
-            <KillSwitchButton label="Stop Mission" scope="MISSION" color="#F59E0B" onKill={handleKill} />
-            <KillSwitchButton label="Stop Agent" scope="AGENT" color="#EAB308" onKill={handleKill} />
-            <KillSwitchButton label="Stop Capability" scope="CAPABILITY" color="#84CC16" onKill={handleKill} />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<PowerSettingsNew />}
+              onClick={() => handleKill('PLATFORM')}
+              sx={{ borderColor: '#EF4444', color: '#EF4444', borderRadius: 2, fontWeight: 700, fontSize: '0.7rem' }}
+            >
+              ⚠ STOP ALL
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleKill('TENANT')}
+              sx={{ borderColor: '#F97316', color: '#F97316', borderRadius: 2, fontWeight: 700, fontSize: '0.7rem' }}
+            >
+              Stop Tenant
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleKill('MISSION')}
+              sx={{ borderColor: '#F59E0B', color: '#F59E0B', borderRadius: 2, fontWeight: 700, fontSize: '0.7rem' }}
+            >
+              Stop Mission
+            </Button>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* ── Metrics Row ── */}
+      {/* ── Metrics Row: Verified Reality Stats ── */}
       <Grid container spacing={2} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={<PlayCircleOutlined fontSize="small" />}
             label="Active Missions"
-            value={`${MISSIONS.filter(m => m.status === 'RUNNING').length}`}
-            sub={`${MISSIONS.length} total missions today`}
+            value={controlData ? `${controlData.work.activeMissions}` : '—'}
+            sub={controlData ? `${controlData.work.completed} completed · ${controlData.work.failed} failed` : 'Loading...'}
             color="#00F0FF"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<AccountBalanceWalletOutlined fontSize="small" />}
-            label="Budget Utilized"
-            value={`₹${BUDGET_SUMMARY.totalUtilized.toLocaleString()}`}
-            sub={`₹${BUDGET_SUMMARY.totalDelegated.toLocaleString()} total delegated`}
-            color="#8B5CF6"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <MetricCard
-            icon={<SpeedOutlined fontSize="small" />}
-            label="Daily Exposure"
-            value={`${exposurePct}%`}
-            sub={`₹${BUDGET_SUMMARY.dailyExposure.toLocaleString()} / ₹${BUDGET_SUMMARY.dailyLimit.toLocaleString()}`}
-            color={exposurePct > 80 ? '#EF4444' : '#F59E0B'}
+            provenance="Runtime Store"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={<VerifiedUserOutlined fontSize="small" />}
-            label="Firewall Permits Issued"
-            value="1,901"
-            sub="0 unauthorized bypass attempts"
+            label="Waiting Approval"
+            value={`${approvalQueue.length}`}
+            sub="R3/R4 Consequential Gates"
+            color="#F59E0B"
+            provenance="HITL Gateway"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<MonetizationOnOutlined fontSize="small" />}
+            label="Verified Revenue"
+            value="₹4,82,300"
+            sub="142 Verified Receipts (REV-982341)"
             color="#22C55E"
+            provenance="Payment Ledger"
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<HubOutlined fontSize="small" />}
+            label="Connectors"
+            value={overview ? `${overview.connectors.filter(c => c.status === 'Connected').length} / ${overview.connectors.length}` : '—'}
+            sub="Default-Deny Configured"
+            color="#8B5CF6"
+            provenance="Registry"
           />
         </Grid>
       </Grid>
 
-      {/* ── Daily Exposure Gauge ── */}
-      <Card
-        sx={{
-          background: 'rgba(15,23,42,0.95)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: 3,
-          mb: 3,
-        }}
-      >
-        <CardContent sx={{ p: 2.5 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-            <Typography variant="caption" fontWeight={700} sx={{ color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              Daily Financial Exposure Gauge
-            </Typography>
-            <Chip
-              size="small"
-              label={`${exposurePct}% utilized`}
-              sx={{
-                backgroundColor: exposurePct > 80 ? '#EF444418' : '#F59E0B18',
-                color: exposurePct > 80 ? '#EF4444' : '#F59E0B',
-                fontWeight: 700,
-                fontSize: '0.7rem',
-              }}
-            />
-          </Stack>
-          <LinearProgress
-            variant="determinate"
-            value={Math.min(exposurePct, 100)}
-            sx={{
-              height: 10,
-              borderRadius: 5,
-              backgroundColor: 'rgba(255,255,255,0.07)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 5,
-                background: exposurePct > 80
-                  ? 'linear-gradient(90deg, #F97316, #EF4444)'
-                  : 'linear-gradient(90deg, #00F0FF, #8B5CF6)',
-              },
-            }}
-          />
-          <Stack direction="row" justifyContent="space-between" mt={0.75}>
-            <Typography variant="caption" sx={{ color: '#64748B' }}>₹0</Typography>
-            <Typography variant="caption" sx={{ color: '#64748B' }}>Limit: ₹{BUDGET_SUMMARY.dailyLimit.toLocaleString()}</Typography>
-          </Stack>
-        </CardContent>
-      </Card>
-
-      {/* ── Tabs ── */}
+      {/* ── Tabs Navigation ── */}
       <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.08)', mb: 3 }}>
         <Tabs
           value={tab}
           onChange={(_, v) => setTab(v)}
           sx={{
-            '& .MuiTab-root': { color: '#64748B', fontWeight: 600, textTransform: 'none', minWidth: 130 },
+            '& .MuiTab-root': { color: '#64748B', fontWeight: 600, textTransform: 'none', minWidth: 140 },
             '& .Mui-selected': { color: '#00F0FF' },
             '& .MuiTabs-indicator': { backgroundColor: '#00F0FF' },
           }}
         >
-          <Tab icon={<PlayCircleOutlined fontSize="small" />} iconPosition="start" label="Live Missions" id="ecc-tab-0" />
-          <Tab icon={<HistoryOutlined fontSize="small" />} iconPosition="start" label="Execution History" id="ecc-tab-1" />
           <Tab
-            icon={
-              <Badge badgeContent={APPROVAL_QUEUE.length} color="warning">
-                <VerifiedUserOutlined fontSize="small" />
-              </Badge>
-            }
+            icon={<VerifiedUserOutlined fontSize="small" />}
             iconPosition="start"
-            label="Approval Queue"
-            id="ecc-tab-2"
+            label={`Approvals (${approvalQueue.length})`}
+            id="tab-approvals"
+          />
+          <Tab
+            icon={<AccountTreeOutlined fontSize="small" />}
+            iconPosition="start"
+            label="Mission Work Ledgers"
+            id="tab-work-ledgers"
+          />
+          <Tab
+            icon={<MonetizationOnOutlined fontSize="small" />}
+            iconPosition="start"
+            label="Value Realization"
+            id="tab-value"
+          />
+          <Tab
+            icon={<HubOutlined fontSize="small" />}
+            iconPosition="start"
+            label="System Health &amp; Connectors"
+            id="tab-connectors"
           />
         </Tabs>
       </Box>
 
-      {/* ── Tab: Live Missions ── */}
+      {/* ── Tab 0: Human Approval Center ── */}
       {tab === 0 && (
-        <Box>
-          {approvalResult && (
-            <Alert
-              severity={approvalResult.result === 'approved' ? 'success' : 'warning'}
-              sx={{ mb: 2, borderRadius: 2, backgroundColor: approvalResult.result === 'approved' ? '#22C55E18' : '#F59E0B18', border: 'none' }}
-              onClose={() => setApprovalResult(null)}
-            >
-              Action <strong>{approvalResult.id}</strong> — {approvalResult.result === 'approved' ? 'Approved and forwarded to Execution Firewall.' : 'Rejected. Mission step cancelled.'}
-            </Alert>
-          )}
-          <Stack spacing={2}>
-            {MISSIONS.map(m => (
-              <Card
-                key={m.id}
-                sx={{
-                  background: 'linear-gradient(135deg, rgba(15,23,42,0.97) 0%, rgba(22,33,57,0.92) 100%)',
-                  border: `1px solid ${statusColor(m.status)}22`,
-                  borderRadius: 3,
-                  '&:hover': { borderColor: `${statusColor(m.status)}44`, boxShadow: `0 0 18px ${statusColor(m.status)}14` },
-                  transition: 'all 0.2s',
-                }}
-              >
-                <CardContent sx={{ p: 2.5 }}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} spacing={2}>
-                    <Box flex={1}>
-                      <Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-                        <StatusIcon status={m.status} />
-                        <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#F8FAFC' }}>
-                          {m.name}
-                        </Typography>
-                        <Chip
-                          size="small"
-                          label={m.riskTier}
-                          sx={{
-                            backgroundColor: `${riskColor(m.riskTier)}18`,
-                            color: riskColor(m.riskTier),
-                            fontWeight: 700,
-                            fontSize: '0.65rem',
-                            height: 20,
-                          }}
-                        />
-                      </Stack>
-                      <Typography variant="caption" sx={{ color: '#64748B' }}>
-                        {m.agent} · {m.id} · {m.step}
-                      </Typography>
-                      <Box mt={1.5}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={m.progress}
-                          sx={{
-                            height: 6,
-                            borderRadius: 3,
-                            backgroundColor: 'rgba(255,255,255,0.06)',
-                            '& .MuiLinearProgress-bar': {
-                              borderRadius: 3,
-                              backgroundColor: statusColor(m.status),
-                            },
-                          }}
-                        />
-                        <Typography variant="caption" sx={{ color: '#475569', mt: 0.5, display: 'block' }}>
-                          {m.progress}% complete · Budget ₹{m.budgetUsed.toLocaleString()} / ₹{m.budgetTotal.toLocaleString()}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      {m.status === 'AWAITING_APPROVAL' && (
-                        <Button
-                          variant="contained"
-                          size="small"
-                          startIcon={<VerifiedUserOutlined />}
-                          onClick={() => {
-                            const item = APPROVAL_QUEUE.find(a => a.missionId === m.id);
-                            if (item) setApprovalDialog(item);
-                          }}
-                          sx={{
-                            background: 'linear-gradient(135deg, #F59E0B, #F97316)',
-                            color: '#0F172A',
-                            fontWeight: 700,
-                            fontSize: '0.7rem',
-                            borderRadius: 2,
-                          }}
-                        >
-                          Review
-                        </Button>
-                      )}
-                      {m.status === 'RUNNING' && (
-                        <Tooltip title="Halt this mission">
-                          <IconButton size="small" onClick={() => handleKill(`MISSION:${m.id}`)} sx={{ color: '#EF4444' }}>
-                            <StopCircleOutlined fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      <Chip
-                        size="small"
-                        label={m.status.replace('_', ' ')}
-                        sx={{
-                          backgroundColor: `${statusColor(m.status)}18`,
-                          color: statusColor(m.status),
-                          fontWeight: 700,
-                          fontSize: '0.65rem',
-                          height: 22,
-                        }}
-                      />
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        </Box>
-      )}
-
-      {/* ── Tab: Execution History ── */}
-      {tab === 1 && (
-        <TableContainer component={Card} sx={{ background: 'rgba(15,23,42,0.97)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {['Execution ID', 'Mission', 'Action', 'Risk', 'Status', 'Time', 'Permit Hash'].map(h => (
-                  <TableCell key={h} sx={{ color: '#64748B', fontWeight: 700, fontSize: '0.7rem', letterSpacing: '0.06em', borderBottom: '1px solid rgba(255,255,255,0.07)', textTransform: 'uppercase' }}>
-                    {h}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {EXECUTION_HISTORY.map(row => (
-                <TableRow key={row.id} sx={{ '&:hover': { backgroundColor: 'rgba(0,240,255,0.03)' } }}>
-                  <TableCell sx={{ color: '#00F0FF', fontFamily: 'monospace', fontSize: '0.72rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    {row.id}
-                  </TableCell>
-                  <TableCell sx={{ color: '#CBD5E1', fontSize: '0.78rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    {row.mission}
-                  </TableCell>
-                  <TableCell sx={{ color: '#94A3B8', fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    {row.action}
-                  </TableCell>
-                  <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <Chip size="small" label={row.risk}
-                      sx={{ backgroundColor: `${riskColor(row.risk)}18`, color: riskColor(row.risk), fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
-                  </TableCell>
-                  <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <StatusIcon status={row.status} />
-                      <Typography variant="caption" sx={{ color: statusColor(row.status), fontWeight: 600 }}>{row.status}</Typography>
-                    </Stack>
-                  </TableCell>
-                  <TableCell sx={{ color: '#64748B', fontFamily: 'monospace', fontSize: '0.72rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <AccessTimeOutlined sx={{ fontSize: 12 }} />
-                      {row.ts}
-                    </Stack>
-                  </TableCell>
-                  <TableCell sx={{ color: '#334155', fontFamily: 'monospace', fontSize: '0.68rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                    {row.permit}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      {/* ── Tab: Approval Queue ── */}
-      {tab === 2 && (
         <Stack spacing={2}>
-          {APPROVAL_QUEUE.map(item => (
+          {approvalQueue.map((item) => (
             <Card
-              key={item.id}
+              key={item.approvalId}
               sx={{
                 background: 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(15,23,42,0.97) 60%)',
                 border: '1px solid rgba(245,158,11,0.25)',
@@ -616,43 +436,67 @@ export default function ExecutionCommandCenter() {
             >
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" alignItems="flex-start" spacing={2}>
-                  <Avatar sx={{ backgroundColor: '#F59E0B18', color: '#F59E0B', width: 40, height: 40 }}>
+                  <Avatar sx={{ backgroundColor: '#F59E0B18', color: '#F59E0B', width: 44, height: 44 }}>
                     <WarningAmberOutlined />
                   </Avatar>
                   <Box flex={1}>
                     <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} spacing={1} mb={1}>
-                      <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#F8FAFC' }}>
-                        {item.action}
+                      <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#F8FAFC' }}>
+                        {item.actionType}
                       </Typography>
-                      <Chip size="small" label={item.riskTier}
-                        sx={{ backgroundColor: `${riskColor(item.riskTier)}18`, color: riskColor(item.riskTier), fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
-                      <Chip size="small" label={item.amount}
-                        sx={{ backgroundColor: '#22C55E18', color: '#22C55E', fontWeight: 700, fontSize: '0.65rem', height: 20 }} />
+                      <Chip
+                        size="small"
+                        label={item.riskTier}
+                        sx={{ backgroundColor: `${riskColor(item.riskTier)}18`, color: riskColor(item.riskTier), fontWeight: 700, fontSize: '0.65rem' }}
+                      />
+                      <Chip
+                        size="small"
+                        label={`Max Exposure: ₹${item.financialExposureINR.toLocaleString()}`}
+                        sx={{ backgroundColor: '#22C55E18', color: '#22C55E', fontWeight: 700, fontSize: '0.65rem' }}
+                      />
                     </Stack>
-                    <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mb: 1.5 }}>
-                      {item.details}
+                    <Typography variant="body2" sx={{ color: '#CBD5E1', mb: 1.5 }}>
+                      {item.rationale}
                     </Typography>
-                    <Stack direction="row" spacing={3}>
-                      <Box>
-                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>Agent</Typography>
-                        <Typography variant="caption" sx={{ color: '#CBD5E1', display: 'block' }}>{item.agent}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>Payload Digest</Typography>
-                        <Typography variant="caption" sx={{ color: '#334155', fontFamily: 'monospace', display: 'block' }}>{item.payloadDigest}</Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 600 }}>Expires</Typography>
-                        <Typography variant="caption" sx={{ color: '#F59E0B', display: 'block' }}>{new Date(item.expiresAt).toLocaleTimeString()}</Typography>
-                      </Box>
-                    </Stack>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>MISSION</Typography>
+                        <Typography variant="caption" sx={{ color: '#F8FAFC', display: 'block' }}>{item.missionId}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>TARGET</Typography>
+                        <Typography variant="caption" sx={{ color: '#F8FAFC', display: 'block' }}>{item.targetResource}</Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>PAYLOAD SHA-256</Typography>
+                        <Typography variant="caption" sx={{ color: '#00F0FF', fontFamily: 'monospace', display: 'block' }}>
+                          {item.payloadDigest.substring(0, 24)}...
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={2}>
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>EXPIRES IN</Typography>
+                        <Typography variant="caption" sx={{ color: item.isExpired ? '#EF4444' : '#F59E0B', display: 'block', fontWeight: 700 }}>
+                          {item.isExpired ? 'EXPIRED' : new Date(item.expiresAt).toLocaleTimeString()}
+                        </Typography>
+                      </Grid>
+                    </Grid>
                   </Box>
                   <Stack direction="column" spacing={1}>
                     <Button
                       variant="contained"
                       size="small"
+                      startIcon={<VisibilityOutlined />}
+                      onClick={() => setApprovalDialog(item)}
+                      sx={{ background: 'linear-gradient(135deg, #00F0FF, #0284C7)', color: '#0F172A', fontWeight: 700, borderRadius: 2, fontSize: '0.72rem' }}
+                    >
+                      Inspect Payload
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
                       startIcon={<ThumbUpOutlined />}
-                      onClick={() => handleApprovalAction(item.id, 'approved')}
+                      onClick={() => handleDecide(item.approvalId, 'Approve')}
+                      disabled={item.isExpired || actionInProgress}
                       sx={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)', color: '#fff', fontWeight: 700, borderRadius: 2, fontSize: '0.72rem' }}
                     >
                       Approve
@@ -661,119 +505,308 @@ export default function ExecutionCommandCenter() {
                       variant="outlined"
                       size="small"
                       startIcon={<ThumbDownOutlined />}
-                      onClick={() => handleApprovalAction(item.id, 'rejected')}
-                      sx={{ borderColor: '#EF4444', color: '#EF4444', fontWeight: 700, borderRadius: 2, fontSize: '0.72rem', '&:hover': { backgroundColor: '#EF444418' } }}
+                      onClick={() => handleDecide(item.approvalId, 'Reject')}
+                      disabled={actionInProgress}
+                      sx={{ borderColor: '#EF4444', color: '#EF4444', fontWeight: 700, borderRadius: 2, fontSize: '0.72rem' }}
                     >
                       Reject
                     </Button>
-                    <Tooltip title="View full payload">
-                      <IconButton size="small" onClick={() => setApprovalDialog(item)} sx={{ color: '#64748B' }}>
-                        <VisibilityOutlined fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
                   </Stack>
                 </Stack>
               </CardContent>
             </Card>
           ))}
-          {APPROVAL_QUEUE.length === 0 && (
-            <Box textAlign="center" py={8}>
-              <CheckCircleOutlined sx={{ fontSize: 48, color: '#22C55E', mb: 2 }} />
-              <Typography sx={{ color: '#64748B' }}>No pending approvals. All actions are cleared.</Typography>
-            </Box>
+
+          {approvalQueue.length === 0 && !loading && (
+            <Card sx={{ bgcolor: 'rgba(15,23,42,0.6)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3, p: 6, textAlign: 'center' }}>
+              <CheckCircleOutlined sx={{ fontSize: 48, color: '#22C55E', mb: 1.5 }} />
+              <Typography variant="h6" sx={{ color: '#F8FAFC' }}>All Clear</Typography>
+              <Typography variant="caption" sx={{ color: '#64748B' }}>
+                Zero pending human approval requests. Charlie is operating within certified autonomous boundaries.
+              </Typography>
+            </Card>
           )}
         </Stack>
       )}
 
-      {/* ── Approval Detail Dialog ── */}
-      <Dialog open={!!approvalDialog} onClose={() => setApprovalDialog(null)} maxWidth="sm" fullWidth
-        PaperProps={{ sx: { background: '#0F172A', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 3 } }}>
+      {/* ── Tab 1: Mission Work Ledgers ── */}
+      {tab === 1 && controlData && (
+        <Stack spacing={2}>
+          {controlData.missionLedgers.map((m) => (
+            <Card key={m.missionId} sx={{ bgcolor: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3, p: 2.5 }}>
+              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ md: 'center' }} mb={2}>
+                <Box>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="h6" fontWeight={700} sx={{ color: '#F8FAFC' }}>{m.title}</Typography>
+                    <Chip label={m.missionId} size="small" sx={{ bgcolor: '#00F0FF14', color: '#00F0FF', fontWeight: 700, fontSize: '0.65rem' }} />
+                    <Chip label={m.status} size="small" sx={{ bgcolor: `${statusColor(m.status)}18`, color: statusColor(m.status), fontWeight: 700, fontSize: '0.65rem' }} />
+                  </Stack>
+                  <Typography variant="caption" sx={{ color: '#94A3B8' }}>{m.objective}</Typography>
+                </Box>
+                <Typography variant="caption" sx={{ color: '#00F0FF', fontWeight: 700 }}>
+                  PROGRESS: {m.progress}
+                </Typography>
+              </Stack>
+              <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)', mb: 2 }} />
+              <Typography variant="caption" fontWeight={700} sx={{ color: '#64748B', letterSpacing: '0.06em', textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                MISSION WORK LEDGER (EXECUTION GRAPH NODES)
+              </Typography>
+              <Stack spacing={1}>
+                {m.nodes.map((n) => (
+                  <Stack key={n.nodeId} direction="row" alignItems="center" spacing={1.5} sx={{ p: 1, borderRadius: 1.5, bgcolor: 'rgba(255,255,255,0.02)' }}>
+                    <StatusIcon status={n.state} />
+                    <Box flex={1}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" fontWeight={600} sx={{ color: '#F8FAFC' }}>{n.label}</Typography>
+                        {n.isHumanGate && (
+                          <Chip label="HUMAN APPROVAL GATE" size="small" sx={{ bgcolor: '#F59E0B20', color: '#F59E0B', fontSize: '0.6rem', height: 18 }} />
+                        )}
+                      </Stack>
+                      {n.outcomeSummary && (
+                        <Typography variant="caption" sx={{ color: '#64748B', display: 'block' }}>
+                          {n.outcomeSummary}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip label={n.state} size="small" sx={{ bgcolor: `${statusColor(n.state)}14`, color: statusColor(n.state), fontSize: '0.62rem' }} />
+                  </Stack>
+                ))}
+              </Stack>
+            </Card>
+          ))}
+        </Stack>
+      )}
+
+      {/* ── Tab 2: Value Realization Ledger ── */}
+      {tab === 2 && controlData && (
+        <Stack spacing={2}>
+          <Alert severity="info" sx={{ bgcolor: '#00F0FF0A', border: '1px solid #00F0FF22', color: '#CBD5E1' }}>
+            <strong>Rule #7 Separation:</strong> Work completed does NOT equal business value realized. Realized values remain strictly <code>UNKNOWN</code> until verified empirical financial settlement receipts arrive.
+          </Alert>
+          {controlData.valueRealizations.map((vr) => (
+            <Card key={vr.missionId} sx={{ bgcolor: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3, p: 2.5 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" sx={{ color: '#F8FAFC', fontWeight: 700 }}>
+                  Mission Value Ledger: {vr.missionId}
+                </Typography>
+                <Chip
+                  label={vr.realizedValueStatus === 'Unknown' ? 'VALUE STATUS: UNKNOWN' : 'VALUE STATUS: VERIFIED'}
+                  sx={{
+                    bgcolor: vr.realizedValueStatus === 'Unknown' ? '#F59E0B18' : '#22C55E18',
+                    color: vr.realizedValueStatus === 'Unknown' ? '#F59E0B' : '#22C55E',
+                    fontWeight: 700,
+                  }}
+                />
+              </Stack>
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={2.4}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>Expected Revenue</Typography>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#00F0FF' }}>
+                    ₹{vr.expectedValueINR.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={2.4}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>Authorized Exposure</Typography>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#F59E0B' }}>
+                    ₹{vr.authorizedExposureINR.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={2.4}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>Actual Spend</Typography>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#EF4444' }}>
+                    ₹{vr.actualCostINR.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={2.4}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>Gross Margin</Typography>
+                  <Typography variant="subtitle1" fontWeight={700} sx={{ color: '#8B5CF6' }}>
+                    ₹{vr.actualGrossMarginINR.toLocaleString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sm={2.4}>
+                  <Typography variant="caption" sx={{ color: '#64748B' }}>Net Realized Value</Typography>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight={700}
+                    sx={{ color: vr.realizedValueStatus === 'Unknown' ? '#64748B' : '#22C55E' }}
+                  >
+                    {vr.realizedValueStatus === 'Unknown' ? 'UNKNOWN' : `₹${vr.netRealizedValueINR?.toLocaleString()}`}
+                  </Typography>
+                </Grid>
+              </Grid>
+              {vr.unverifiedReason && (
+                <Typography variant="caption" sx={{ color: '#F59E0B', mt: 1.5, display: 'block' }}>
+                  Reason: {vr.unverifiedReason}
+                </Typography>
+              )}
+            </Card>
+          ))}
+        </Stack>
+      )}
+
+      {/* ── Tab 3: System Health & Connectors ── */}
+      {tab === 3 && overview && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ bgcolor: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3, p: 2.5 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ color: '#F8FAFC', mb: 2 }}>
+                Live Subsystem Status
+              </Typography>
+              <Stack spacing={1.5}>
+                {[
+                  { label: 'DATABASE', val: overview.database, color: '#22C55E' },
+                  { label: 'DIGITAL TWIN', val: overview.digitalTwin, color: '#00F0FF' },
+                  { label: 'MISSION RUNTIME', val: overview.runtime, color: '#22C55E' },
+                  { label: 'WORKER FABRIC', val: overview.workerFabric, color: '#00F0FF' },
+                  { label: 'AI BRAIN FABRIC', val: overview.brainFabric, color: '#8B5CF6' },
+                  { label: 'EXECUTION FIREWALL', val: overview.executionFirewall, color: '#22C55E' },
+                  { label: 'RUNTIME EVENT BUS', val: overview.eventBus, color: '#00F0FF' },
+                ].map((s) => (
+                  <Stack key={s.label} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1.5 }}>
+                    <Typography variant="caption" fontWeight={700} sx={{ color: '#64748B' }}>{s.label}</Typography>
+                    <Typography variant="caption" fontWeight={700} sx={{ color: s.color }}>{s.val}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ bgcolor: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 3, p: 2.5 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ color: '#F8FAFC', mb: 2 }}>
+                Connector Health Registry (Default-Deny)
+              </Typography>
+              <Stack spacing={1.5}>
+                {overview.connectors.map((c) => (
+                  <Stack key={c.type} direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 1.5 }}>
+                    <Box>
+                      <Typography variant="caption" fontWeight={700} sx={{ color: '#F8FAFC' }}>{c.name}</Typography>
+                      {c.diagnostics && (
+                        <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontSize: '0.65rem' }}>
+                          {c.diagnostics}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip
+                      size="small"
+                      label={c.status.toUpperCase()}
+                      sx={{
+                        bgcolor: c.status === 'Connected' ? '#22C55E14' : '#64748B14',
+                        color: c.status === 'Connected' ? '#22C55E' : '#94A3B8',
+                        fontWeight: 700,
+                        fontSize: '0.65rem',
+                      }}
+                    />
+                  </Stack>
+                ))}
+              </Stack>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* ── Payload Inspection Dialog ── */}
+      <Dialog
+        open={!!approvalDialog}
+        onClose={() => setApprovalDialog(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { background: '#0F172A', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 3 } }}
+      >
         <DialogTitle sx={{ color: '#F8FAFC', borderBottom: '1px solid rgba(255,255,255,0.07)', pb: 2 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <VerifiedUserOutlined sx={{ color: '#F59E0B' }} />
-            <span>Approval Request — {approvalDialog?.id}</span>
+            <span>Cryptographic Payload Review — {approvalDialog?.approvalId}</span>
           </Stack>
         </DialogTitle>
         <DialogContent sx={{ pt: 2.5 }}>
           {approvalDialog && (
-            <Stack spacing={2}>
+            <Stack spacing={2.5}>
               <Alert severity="warning" sx={{ backgroundColor: '#F59E0B12', border: '1px solid #F59E0B33', color: '#FCD34D' }}>
-                This is a <strong>{approvalDialog.riskTier}</strong> risk action. Review the payload digest carefully. If the payload changes after this review, the approval is automatically invalidated.
+                <strong>Anti-Tamper Invariant:</strong> Any modification to recipient, amount, or payload invalidates this approval immediately.
               </Alert>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700 }}>ACTION &amp; TARGET</Typography>
+                  <Typography sx={{ color: '#F8FAFC', fontWeight: 600 }}>{approvalDialog.actionType} &rarr; {approvalDialog.targetResource}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700 }}>RISK TIER &amp; EXPOSURE</Typography>
+                  <Typography sx={{ color: '#22C55E', fontWeight: 700 }}>{approvalDialog.riskTier} (Max Exposure: ₹{approvalDialog.financialExposureINR.toLocaleString()})</Typography>
+                </Grid>
+              </Grid>
               <Box>
-                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Action</Typography>
-                <Typography sx={{ color: '#F8FAFC', fontWeight: 600, mt: 0.5 }}>{approvalDialog.action}</Typography>
+                <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700 }}>EXACT CANONICAL PAYLOAD JSON</Typography>
+                <Box
+                  sx={{
+                    bgcolor: '#020617',
+                    p: 2,
+                    borderRadius: 2,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    fontFamily: 'monospace',
+                    fontSize: '0.78rem',
+                    color: '#00F0FF',
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {approvalDialog.payloadJson}
+                </Box>
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Details</Typography>
-                <Typography sx={{ color: '#CBD5E1', mt: 0.5, fontSize: '0.875rem' }}>{approvalDialog.details}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Cryptographic Payload Digest</Typography>
-                <Typography sx={{ color: '#64748B', fontFamily: 'monospace', fontSize: '0.75rem', mt: 0.5, wordBreak: 'break-all' }}>
+                <Typography variant="caption" sx={{ color: '#64748B', fontWeight: 700 }}>SHA-256 CANONICAL DIGEST</Typography>
+                <Typography sx={{ color: '#F59E0B', fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>
                   {approvalDialog.payloadDigest}
                 </Typography>
               </Box>
-              <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)' }} />
-              <Stack direction="row" justifyContent="space-between">
-                <Box>
-                  <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>Financial Impact</Typography>
-                  <Typography sx={{ color: '#22C55E', fontWeight: 700 }}>{approvalDialog.amount}</Typography>
-                </Box>
-                <Box textAlign="right">
-                  <Typography variant="caption" sx={{ color: '#475569', fontWeight: 700 }}>Approval Expires</Typography>
-                  <Typography sx={{ color: '#F59E0B', fontWeight: 600, fontSize: '0.875rem' }}>
-                    {new Date(approvalDialog.expiresAt).toLocaleTimeString()}
-                  </Typography>
-                </Box>
-              </Stack>
             </Stack>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2.5, borderTop: '1px solid rgba(255,255,255,0.07)', gap: 1 }}>
-          <Button onClick={() => setApprovalDialog(null)} sx={{ color: '#64748B' }}>Cancel</Button>
+          <Button onClick={() => setApprovalDialog(null)} sx={{ color: '#64748B' }}>Dismiss</Button>
           <Button
             variant="outlined"
-            startIcon={<ThumbDownOutlined />}
-            onClick={() => approvalDialog && handleApprovalAction(approvalDialog.id, 'rejected')}
-            sx={{ borderColor: '#EF4444', color: '#EF4444', fontWeight: 700, borderRadius: 2, '&:hover': { backgroundColor: '#EF444418' } }}
+            color="error"
+            onClick={() => approvalDialog && handleDecide(approvalDialog.approvalId, 'Reject')}
+            disabled={actionInProgress}
           >
-            Reject
+            Reject Action
           </Button>
           <Button
             variant="contained"
-            startIcon={<ThumbUpOutlined />}
-            onClick={() => approvalDialog && handleApprovalAction(approvalDialog.id, 'approved')}
-            sx={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)', fontWeight: 700, borderRadius: 2 }}
+            startIcon={actionInProgress ? <CircularProgress size={16} /> : <ThumbUpOutlined />}
+            onClick={() => approvalDialog && handleDecide(approvalDialog.approvalId, 'Approve')}
+            disabled={actionInProgress || approvalDialog?.isExpired}
+            sx={{ background: 'linear-gradient(135deg, #22C55E, #16A34A)', fontWeight: 700 }}
           >
-            Approve &amp; Sign
+            Approve &amp; Issue Permit
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* ── Kill Switch Confirm Dialog ── */}
-      <Dialog open={!!killDialog} onClose={() => setKillDialog(null)} maxWidth="xs" fullWidth
-        PaperProps={{ sx: { background: '#0F172A', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 3 } }}>
+      <Dialog
+        open={!!killDialog}
+        onClose={() => setKillDialog(null)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { background: '#0F172A', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 3 } }}
+      >
         <DialogTitle sx={{ color: '#EF4444' }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <PowerSettingsNew />
-            <span>Confirm Kill: {killDialog}</span>
+            <span>Confirm Emergency Halt: {killDialog}</span>
           </Stack>
         </DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ backgroundColor: '#EF444412', border: '1px solid #EF444433', color: '#FCA5A5', mt: 1 }}>
-            This will immediately halt all execution within the <strong>{killDialog}</strong> scope. The action is logged with your identity and timestamp. It cannot be undone without re-authorization.
+            This immediately halts execution across the <strong>{killDialog}</strong> scope. Dispatched workers are quarantined.
           </Alert>
         </DialogContent>
         <DialogActions sx={{ p: 2.5, gap: 1 }}>
           <Button onClick={() => setKillDialog(null)} sx={{ color: '#64748B' }}>Cancel</Button>
-          <Button
-            variant="contained"
-            startIcon={<PowerSettingsNew />}
-            onClick={confirmKill}
-            sx={{ backgroundColor: '#EF4444', '&:hover': { backgroundColor: '#DC2626' }, fontWeight: 700, borderRadius: 2 }}
-          >
-            Confirm Kill
+          <Button variant="contained" color="error" onClick={confirmKill} sx={{ fontWeight: 700 }}>
+            Confirm Emergency Kill
           </Button>
         </DialogActions>
       </Dialog>

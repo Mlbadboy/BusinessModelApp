@@ -318,8 +318,71 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constrain
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IBusinessConstraintEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.BusinessConstraintEngine>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Constraints.IStrategicArbitrationEngine, BusinessModelApp.Infrastructure.Runtime.Constraints.StrategicArbitrationEngine>();
 
+// Phase 3 Batch 3.6: Universal Business Worker Fabric
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerStore, BusinessModelApp.Infrastructure.Runtime.Workers.InMemoryWorkerStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerSandboxManager, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerSandboxManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerHealthManager, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerHealthManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerResolver, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerResolver>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerActionProposalGateway, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerActionProposalGateway>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerModalityAdapter, BusinessModelApp.Infrastructure.Runtime.Workers.ApiWorkerAdapter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerModalityAdapter, BusinessModelApp.Infrastructure.Runtime.Workers.McpWorkerAdapter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerModalityAdapter, BusinessModelApp.Infrastructure.Runtime.Workers.BrowserWorkerAdapter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerModalityAdapter, BusinessModelApp.Infrastructure.Runtime.Workers.DesktopWorkerAdapter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerRecoveryManager, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerRecoveryManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Workers.IWorkerFabric, BusinessModelApp.Infrastructure.Runtime.Workers.WorkerFabric>();
 
+// Phase 3 PRG-1: Production Reality Gate & Human Approval Control Plane
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reality.IProductionRealityService, BusinessModelApp.Infrastructure.Runtime.Reality.ProductionRealityService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reality.IHumanApprovalManager, BusinessModelApp.Infrastructure.Runtime.Reality.HumanApprovalManager>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reality.IWorkControlCenter, BusinessModelApp.Infrastructure.Runtime.Reality.WorkControlCenter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reality.IValueRealizationEngine, BusinessModelApp.Infrastructure.Runtime.Reality.ValueRealizationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Reality.IConnectorHealthService, BusinessModelApp.Infrastructure.Runtime.Reality.ConnectorHealthService>();
 
+// Phase 3 Batch 3.7: Autonomous Capability Factory
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityGapDetector, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityGapDetector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilitySpecifier, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilitySpecificationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityDesigner, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityDesignEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityGenerator, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityGenerator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.IStaticSecurityScanner, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.StaticSecurityScanner>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilitySandbox, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilitySandbox>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityTddRunner, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityTddRunner>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityEvaluator, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityEvaluationEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.IAdversarialRedTeamEngine, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.StrixAdversarialRedTeamEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.IIndependentCertificationAuthority, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.IndependentCertificationAuthority>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilitySigningService, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilitySigningService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityLifecycleRegistry, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityLifecycleRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.ICapabilityPromotionGate, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.CapabilityPromotionGate>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Capabilities.Factory.IAutonomousCapabilityFactory, BusinessModelApp.Infrastructure.Runtime.Capabilities.Factory.AutonomousCapabilityFactory>();
+
+// Phase 3 Batch 3.8.0: Business Intelligence Kernel
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IKpiRegistry, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.InMemoryKpiRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IKpiObservationStore, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.InMemoryKpiObservationStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IAnalysisRecordStore, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.InMemoryAnalysisRecordStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IBaselineQualityEvaluator, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.BaselineQualityEvaluator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IAnomalyDetector, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.StatisticalAnomalyDetector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.ITrendAnalyzer, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.TrendAnalyzer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IMetricRelationshipAnalyzer, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.MetricRelationshipAnalyzer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IBusinessStateInterpreter, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.BusinessStateInterpreter>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IEvidenceLinkedExplainer, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.EvidenceLinkedExplainer>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Kernel.IBusinessIntelligenceKernel, BusinessModelApp.Infrastructure.Runtime.Intelligence.Kernel.BusinessIntelligenceKernel>();
+
+// Phase 3 Batch 3.8.1: Causal Intelligence Engine
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.ICausalGraphEngine, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.CausalGraphEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.ICausalHypothesisEngine, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.CausalHypothesisEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.IConfounderDetector, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.ConfounderDetector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.ITemporalCausalInvestigator, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.TemporalCausalInvestigator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.IInterventionSimulator, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.InterventionSimulator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.ICausalEvidenceEvaluator, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.CausalEvidenceEvaluator>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Causal.ICausalIntelligenceEngine, BusinessModelApp.Infrastructure.Runtime.Intelligence.Causal.CausalIntelligenceEngine>();
+
+// Phase 3 Batch 3.8.2: Forecasting Engine & Time-Series Prediction Metrology
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IForecastModelRegistry, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.ForecastModelRegistry>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IRegimeChangeDetector, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.RegimeChangeDetector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IBacktestEngine, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.BacktestEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IForecastDriftMonitor, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.ForecastDriftMonitor>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IForecastRecordStore, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.ForecastRecordStore>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IForecastEngine, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.ForecastEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Interfaces.Runtime.Intelligence.Forecasting.IForecastingMetrologyOrchestrator, BusinessModelApp.Infrastructure.Runtime.Intelligence.Forecasting.ForecastingMetrologyOrchestrator>();
 
 // Phase 1 v1.2: Autonomous Commercial Officer Runtime & Business Hive
 builder.Services.AddScoped<BusinessModelApp.Core.Strategy.IReverseFunnelEngine, BusinessModelApp.Infrastructure.Strategy.ReverseFunnelEngine>();

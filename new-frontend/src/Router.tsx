@@ -23,6 +23,7 @@ const SecurityCommandCenter = lazy(() => import('./pages/SecurityCommandCenter')
 const ExecutionCommandCenter = lazy(() => import('./pages/ExecutionCommandCenter'));
 const AIBrainSettings = lazy(() => import('./pages/Settings/AIBrainSettings'));
 const BusinessConstraints = lazy(() => import('./pages/Settings/BusinessConstraints'));
+const WorkerFabric = lazy(() => import('./pages/Settings/WorkerFabric'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -188,6 +189,51 @@ export const Router = () => {
           />
 
           <Route
+            path="/execution/approvals"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/execution/control-center"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/execution/history"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/execution/value"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/system/reality"
+            element={
+              <ProtectedRoute>
+                <ExecutionCommandCenter />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/settings/ai-brain"
             element={
               <ProtectedRoute>
@@ -201,6 +247,15 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <BusinessConstraints />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/worker-fabric"
+            element={
+              <ProtectedRoute>
+                <WorkerFabric />
               </ProtectedRoute>
             }
           />
