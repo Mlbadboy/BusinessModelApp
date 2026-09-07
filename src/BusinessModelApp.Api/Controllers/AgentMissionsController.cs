@@ -74,6 +74,34 @@ namespace BusinessModelApp.Api.Controllers
             return Ok(mission);
         }
 
+        [HttpGet("{id}/trajectory")]
+        public ActionResult<MissionTrajectoryReport> GetMissionTrajectory(Guid id)
+        {
+            try
+            {
+                var report = _orchestrator.GetTrajectoryReport(id);
+                return Ok(report);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
+        [HttpPost("{id}/replan")]
+        public async Task<ActionResult<AgentMission>> ReplanMission(Guid id)
+        {
+            try
+            {
+                var mission = await _orchestrator.ReplanMissionAsync(id);
+                return Ok(mission);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound();
+            }
+        }
+
         [HttpPost("{id}/approve-task/{taskId}")]
         public async Task<ActionResult> ApproveGatedTask(Guid id, Guid taskId)
         {
@@ -90,3 +118,4 @@ namespace BusinessModelApp.Api.Controllers
         }
     }
 }
+

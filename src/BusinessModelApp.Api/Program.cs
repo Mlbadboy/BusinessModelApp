@@ -427,10 +427,26 @@ builder.Services.AddSingleton<BusinessModelApp.Core.Constitution.IKillSwitchMana
 builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IAutonomyManager, BusinessModelApp.Infrastructure.Agents.AutonomyManager>();
 builder.Services.AddSingleton<BusinessModelApp.Core.Agents.IGovernedLearningLoop, BusinessModelApp.Infrastructure.Agents.GovernedLearningLoop>();
 
-// Gate 6: Autonomous Agent Orchestrator & Governed Tool Registry
+// Gate 6 & Gate 7: Autonomous Agent Orchestrator, Governed Connectors & Mission Success Controller
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IWebSearchConnector, BusinessModelApp.Infrastructure.Connectors.GovernedWebSearchConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.ICompanyIntelligenceConnector, BusinessModelApp.Infrastructure.Connectors.GovernedCompanyIntelligenceConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IProspectDiscoveryConnector, BusinessModelApp.Infrastructure.Connectors.GovernedProspectDiscoveryConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IEmailCommunicationConnector, BusinessModelApp.Infrastructure.Connectors.GovernedEmailCommunicationConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.ICalendarSchedulingConnector, BusinessModelApp.Infrastructure.Connectors.GovernedCalendarSchedulingConnector>();
+builder.Services.AddScoped<BusinessModelApp.Core.Connectors.IProposalEngineConnector, BusinessModelApp.Infrastructure.Connectors.GovernedProposalEngineConnector>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IMissionSuccessController, BusinessModelApp.Core.Services.MissionSuccessController>();
 builder.Services.AddScoped<BusinessModelApp.Core.Agents.IGovernedToolRegistry, BusinessModelApp.Core.Agents.GovernedToolRegistry>();
+
+// Gate 8: Charlie Connect, Opportunity Discovery, Commercial Transactions & Delivery Swarm
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.ICharlieConnectService, BusinessModelApp.Infrastructure.Services.CharlieConnectService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IBusinessOpportunityEngine, BusinessModelApp.Infrastructure.Services.BusinessOpportunityEngine>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.IDeliverySwarmService, BusinessModelApp.Infrastructure.Services.DeliverySwarmService>();
+builder.Services.AddSingleton<BusinessModelApp.Core.Services.ICommercialTransactionEngine, BusinessModelApp.Infrastructure.Services.CommercialTransactionEngine>();
+
 builder.Services.AddSingleton<BusinessModelApp.Core.Services.IAgentOrchestratorService>(sp => 
-    new BusinessModelApp.Core.Services.AgentOrchestratorService(sp.GetRequiredService<IServiceScopeFactory>()));
+    new BusinessModelApp.Core.Services.AgentOrchestratorService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<BusinessModelApp.Core.Services.IMissionSuccessController>()));
 
 // 9. Register Production Health Checks
 builder.Services.AddScoped<AppDbContextHealthCheck>();

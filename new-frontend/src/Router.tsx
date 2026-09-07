@@ -24,6 +24,9 @@ const ExecutionCommandCenter = lazy(() => import('./pages/ExecutionCommandCenter
 const AIBrainSettings = lazy(() => import('./pages/Settings/AIBrainSettings'));
 const BusinessConstraints = lazy(() => import('./pages/Settings/BusinessConstraints'));
 const WorkerFabric = lazy(() => import('./pages/Settings/WorkerFabric'));
+const CharlieConnect = lazy(() => import('./pages/CharlieConnect'));
+const OpportunityDiscovery = lazy(() => import('./pages/OpportunityDiscovery'));
+const DeliverySwarm = lazy(() => import('./pages/DeliverySwarm'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -256,6 +259,33 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <WorkerFabric />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/connect"
+            element={
+              <ProtectedRoute>
+                <CharlieConnect />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/opportunities/discovery"
+            element={
+              <ProtectedRoute>
+                <OpportunityDiscovery />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/delivery-swarm"
+            element={
+              <ProtectedRoute>
+                <DeliverySwarm />
               </ProtectedRoute>
             }
           />

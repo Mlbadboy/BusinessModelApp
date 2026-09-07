@@ -42,19 +42,25 @@ namespace BusinessModelApp.Core.Agents
         public GovernedToolRegistry(
             ICommercialRepository commercialRepo,
             IEnumerable<IToolExecutionAdapter>? adapters)
-            : this(commercialRepo, null, adapters)
+            : this(commercialRepo, null, adapters, null)
         {
         }
 
         public GovernedToolRegistry(
-            ICommercialRepository commercialRepo,
+            ICommercialRepository? commercialRepo = null,
             IProspectDiscoveryService? prospectDiscovery = null,
-            IEnumerable<IToolExecutionAdapter>? adapters = null)
+            IEnumerable<IToolExecutionAdapter>? adapters = null,
+            AgentPolicyEngine? policyEngine = null)
         {
-            _commercialRepo = commercialRepo ?? throw new ArgumentNullException(nameof(commercialRepo));
+            _commercialRepo = commercialRepo!;
             _prospectDiscovery = prospectDiscovery;
-            _policyEngine = new AgentPolicyEngine();
+            _policyEngine = policyEngine ?? new AgentPolicyEngine();
             _adapters = adapters?.ToDictionary(a => a.ActionType, a => a) ?? new Dictionary<AgentActionType, IToolExecutionAdapter>();
+        }
+
+        public GovernedToolRegistry(ICommercialRepository? commercialRepo, AgentPolicyEngine? policyEngine)
+            : this(commercialRepo, null, null, policyEngine)
+        {
         }
 
         public async Task<ToolExecutionResult> ExecuteToolAsync(
