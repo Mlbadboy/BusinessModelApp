@@ -122,6 +122,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     {
       title: 'BUSINESS EXECUTION',
       items: [
+        { text: 'Executive Control Tower', icon: <AccountBalance />, path: '/control-tower' },
         { text: 'Growth Agent', icon: <SmartToy />, path: '/growth-agent' },
         { text: 'Opportunity Discovery', icon: <Analytics />, path: '/opportunities/discovery' },
         { text: 'Delivery Swarm', icon: <SmartToy />, path: '/delivery-swarm' },
@@ -140,6 +141,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     {
       title: 'INTELLIGENCE',
       items: [
+        { text: 'Brain Space 4.3', icon: <PsychologyAlt />, path: '/brain-space' },
         { text: 'Market Radar', icon: <Radar />, path: '/market-radar' },
         { text: 'Business Brain', icon: <Psychology />, path: '/business-brain' },
         { text: 'Business Health', icon: <Analytics />, path: '/analytics' },

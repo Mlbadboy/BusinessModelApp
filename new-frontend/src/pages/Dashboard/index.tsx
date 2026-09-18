@@ -26,12 +26,12 @@ import { ErrorBoundary } from '../../components/ErrorBoundary';
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { dashboardData, opportunities, isLoading: isCommercialLoading } = useCommercial();
-  const { summary: aiSummary, isLoading: isAILoading } = useAIControlCenter();
+  const { summary: aiSummary, isLoading: _isAILoading } = useAIControlCenter();
 
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceData | null>(null);
   const [evidenceDrawerOpen, setEvidenceDrawerOpen] = useState(false);
 
-  if (isCommercialLoading || isAILoading) {
+  if (isCommercialLoading && !dashboardData) {
     return (
       <Layout>
         <LoadingState message="Synchronizing Business Operating Reality..." />

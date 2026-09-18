@@ -27,6 +27,10 @@ const WorkerFabric = lazy(() => import('./pages/Settings/WorkerFabric'));
 const CharlieConnect = lazy(() => import('./pages/CharlieConnect'));
 const OpportunityDiscovery = lazy(() => import('./pages/OpportunityDiscovery'));
 const DeliverySwarm = lazy(() => import('./pages/DeliverySwarm'));
+const Simulation = lazy(() => import('./pages/Simulation'));
+const BrainSpace = lazy(() => import('./pages/BrainSpace'));
+const ExecutiveControlTower = lazy(() => import('./pages/ExecutiveControlTower'));
+const CommercialRevenueOperations = lazy(() => import('./pages/CommercialRevenueOperations'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -286,6 +290,51 @@ export const Router = () => {
             element={
               <ProtectedRoute>
                 <DeliverySwarm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/simulation"
+            element={
+              <ProtectedRoute>
+                <Simulation />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/brain-space"
+            element={
+              <ProtectedRoute>
+                <BrainSpace />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/control-tower"
+            element={
+              <ProtectedRoute>
+                <ExecutiveControlTower />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/commercial-operations"
+            element={
+              <ProtectedRoute>
+                <CommercialRevenueOperations />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/revenue-operations"
+            element={
+              <ProtectedRoute>
+                <CommercialRevenueOperations />
               </ProtectedRoute>
             }
           />

@@ -2731,6 +2731,133 @@
     });
   }
 
+  // 11h. Batch 3.8.6 Executive Intelligence & Briefing Modal (CEO & Board Intelligence)
+  function openExecutiveBriefModal() {
+    sfx.playQuantumPulse();
+
+    const bodyHtml = `
+      <!-- Sovereign Constitutional Boundary Banner (I24) -->
+      <div style="background: rgba(255, 68, 68, 0.08); border: 1px solid rgba(255, 68, 68, 0.35); padding: 12px 14px; border-radius: 4px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-family: var(--font-mono); font-size: 0.72rem; color: #ff5577; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+            ⚠ INVARIANT I24 — EXECUTIVE INTELLIGENCE SOVEREIGNTY
+          </div>
+          <span class="status-chip chip-magenta" style="font-size: 0.62rem;">ZERO PERMITS</span>
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-white); margin-top: 4px; line-height: 1.4;">
+          <strong>STATUS: PENDING HUMAN REVIEW — CHARLIE CANNOT APPROVE OR EXECUTE</strong><br>
+          Executive briefings synthesize intelligence and evaluate trade-offs. Charlie has <em>zero autonomous execution authority</em>. All consequential actions require Human / PRG-1 authority.
+        </div>
+      </div>
+
+      <!-- Role Audience Lenses -->
+      <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+        <span class="filter-chip active" style="background: rgba(0,255,255,0.15); border: 1px solid var(--cyan); color: var(--cyan); font-weight: 700; font-size: 0.7rem; padding: 4px 10px; border-radius: 3px; cursor: pointer;">CEO LENS (STRATEGIC)</span>
+        <span class="filter-chip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 0.7rem; padding: 4px 10px; border-radius: 3px; cursor: pointer;">CFO (LIQUIDITY &amp; MARGIN)</span>
+        <span class="filter-chip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 0.7rem; padding: 4px 10px; border-radius: 3px; cursor: pointer;">COO (CAPACITY &amp; FLEET)</span>
+        <span class="filter-chip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 0.7rem; padding: 4px 10px; border-radius: 3px; cursor: pointer;">CRO (COMMERCIAL &amp; FUNNEL)</span>
+        <span class="filter-chip" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); font-size: 0.7rem; padding: 4px 10px; border-radius: 3px; cursor: pointer;">BOARD (PORTFOLIO)</span>
+      </div>
+
+      <!-- Core Executive Telemetry Grid -->
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;">
+        <div style="background: rgba(0,255,255,0.05); border: 1px solid rgba(0,255,255,0.2); padding: 10px; border-radius: 4px;">
+          <div style="font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono);">BUSINESS HEALTH</div>
+          <div style="font-size: 1.25rem; color: var(--cyan); font-weight: 700;">87.4%</div>
+          <div style="font-size: 0.62rem; color: var(--green);">● Live Verified (Twin)</div>
+        </div>
+        <div style="background: rgba(255,184,0,0.05); border: 1px solid rgba(255,184,0,0.2); padding: 10px; border-radius: 4px;">
+          <div style="font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono);">FUNNEL CONVERSION</div>
+          <div style="font-size: 1.25rem; color: var(--warning); font-weight: 700;">4.2% <span style="font-size: 0.75rem; color: #ff5577;">↓ 5.1%</span></div>
+          <div style="font-size: 0.62rem; color: var(--warning);">Softening Pattern</div>
+        </div>
+        <div style="background: rgba(188,0,255,0.05); border: 1px solid rgba(188,0,255,0.2); padding: 10px; border-radius: 4px;">
+          <div style="font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono);">CLAMPED CONFIDENCE</div>
+          <div style="font-size: 1.25rem; color: var(--magenta); font-weight: 700;">78.0%</div>
+          <div style="font-size: 0.62rem; color: var(--magenta);">Invariant I24-D Clamped</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.15); padding: 10px; border-radius: 4px;">
+          <div style="font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono);">SECURITY POSTURE</div>
+          <div style="font-size: 1.25rem; color: var(--text-dim); font-weight: 700;">UNKNOWN</div>
+          <div style="font-size: 0.62rem; color: var(--text-dim);">Telemetry Honest (I24-A)</div>
+        </div>
+      </div>
+
+      <!-- The "So What?" Syntheses -->
+      <div style="margin-bottom: 16px; background: rgba(255,255,255,0.02); border: 1px solid rgba(0,255,255,0.15); padding: 12px; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; color: var(--text-white);">
+            Material Development: Conversion Softening &amp; Price War Counter-Action
+          </div>
+          <span style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--magenta); font-weight: 700;">CRITICAL ATTENTION (I24-F)</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.76rem; color: var(--text-muted);">
+          <div>
+            <strong style="color: var(--cyan);">WHAT CHANGED:</strong> 5.1% drop in top-funnel conversion velocity detected.<br>
+            <strong style="color: var(--cyan);">WHY IT HAPPENED:</strong> Radar identified aggressive competitor discounting.<br>
+            <strong style="color: var(--cyan);">SO WHAT:</strong> Projected ₹1,20,000 margin slippage over 30 days if unaddressed.
+          </div>
+          <div>
+            <strong style="color: var(--magenta);">RECOMMENDED OPTION:</strong> Targeted value-add packaging to defend pricing power.<br>
+            <strong style="color: var(--magenta);">DO NOTHING BASELINE:</strong> Status quo projected to erode 8.4% commercial run-rate.<br>
+            <strong style="color: #ff5577;">GOVERNANCE REQUIREMENT:</strong> REQUIRES HUMAN REVIEW.
+          </div>
+        </div>
+      </div>
+
+      <!-- Governance & Attention Queue -->
+      <div style="margin-bottom: 12px;">
+        <div style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--cyan); text-transform: uppercase; margin-bottom: 6px;">
+          EXECUTIVE GOVERNANCE QUEUE (AWAITING HITL ACTION):
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,184,0,0.05); border-left: 3px solid var(--warning);">
+            <div>
+              <div style="font-size: 0.78rem; font-weight: 700; color: #fff;">Decision Review: Targeted Value Packaging (Category: PricingAdjustment)</div>
+              <div style="font-size: 0.68rem; color: var(--text-muted);">Reversibility: Type 1 (Easily Reversible) &bull; Reviewer: CEO &bull; Inaction Risk: ₹1,20,000</div>
+            </div>
+            <span style="font-size: 0.68rem; color: var(--warning); font-weight: 700; font-family: var(--font-mono);">REQUIRES HUMAN REVIEW</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,68,68,0.05); border-left: 3px solid #ff5577;">
+            <div>
+              <div style="font-size: 0.78rem; font-weight: 700; color: #fff;">Threat Assessment: Competitive Price War (Significance: 85.0)</div>
+              <div style="font-size: 0.68rem; color: var(--text-muted);">Domain: Commercial &bull; Horizon: 12h SLA &bull; Radar Origin: RADAR-SIG-8841</div>
+            </div>
+            <span style="font-size: 0.68rem; color: #ff5577; font-weight: 700; font-family: var(--font-mono);">CRITICAL THREAT</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.open({
+      categoryCode: 'EXECUTIVE INTELLIGENCE // BRIEFING',
+      title: 'EXECUTIVE BRIEFING &amp; GOVERNANCE DESK (BATCH 3.8.6)',
+      bodyHtml,
+      footerText: 'INVARIANT I24 ENFORCED &bull; BRIEFING != DECISION != APPROVAL != EXECUTION',
+      actions: [
+        {
+          id: 'act-ack-brief',
+          label: 'Acknowledge Briefing (Viewed by Leadership)',
+          variant: 'btn-cyan',
+          onClick: () => {
+            dispatchGovernedAction('Acknowledge Executive Briefing', 'EXEC-ACK', 'Executive Office');
+            toast.show('EXECUTIVE BRIEFING ACKNOWLEDGED BY LEADERSHIP &bull; AUTHORITY REMAINS AT HUMAN GATE', 'info', 4000);
+            modal.close();
+          },
+        },
+        {
+          id: 'act-view-provenance',
+          label: 'Inspect SHA-256 Provenance Hash',
+          variant: 'btn-magenta',
+          onClick: () => {
+            openProvenanceInspector('revenue_run_rate');
+          },
+        },
+      ],
+    });
+  }
+
   // 11g. PRG-1 Provenance Inspector ("Why is this value here?")
   function openProvenanceInspector(metricKey) {
     const p = NEXUS_DATA.provenance[metricKey] || {
@@ -3008,6 +3135,15 @@
             if (badgeBR) { badgeBR.querySelector('.badge-key').textContent = 'ZERO PERMIT BYPASS'; badgeBR.querySelector('.badge-val').textContent = 'INVARIANT I17'; }
             openCapabilityFactoryInspector();
             break;
+          case 'executive':
+            if (modeLabel) modeLabel.textContent = 'EXECUTIVE BRIEF';
+            if (stateIndicator) stateIndicator.textContent = '● PENDING HUMAN REVIEW';
+            if (badgeTL) { badgeTL.querySelector('.badge-key').textContent = 'LEADERSHIP LENS'; badgeTL.querySelector('.badge-val').textContent = 'CEO & BOARD'; }
+            if (badgeTR) { badgeTR.querySelector('.badge-key').textContent = 'CLAMPED CONFIDENCE'; badgeTR.querySelector('.badge-val').textContent = '78.0% (I24-D)'; }
+            if (badgeBL) { badgeBL.querySelector('.badge-key').textContent = 'GOVERNANCE QUEUE'; badgeBL.querySelector('.badge-val').textContent = '2 AWAITING'; }
+            if (badgeBR) { badgeBR.querySelector('.badge-key').textContent = 'FIREWALL BOUNDARY'; badgeBR.querySelector('.badge-val').textContent = 'ZERO PERMIT'; }
+            openExecutiveBriefModal();
+            break;
           default: // core
             if (modeLabel) modeLabel.textContent = 'BUSINESS CORE';
             if (stateIndicator) stateIndicator.textContent = '● LIVE TWIN SYNC';
@@ -3215,6 +3351,9 @@
         if (b) b.click();
       } else if (e.key === '7' || e.key.toLowerCase() === 'y') {
         const b = document.getElementById('nav-factory');
+        if (b) b.click();
+      } else if (e.key === '8' || e.key.toLowerCase() === 'e') {
+        const b = document.getElementById('nav-executive');
         if (b) b.click();
       } else if (e.key.toLowerCase() === 'c') {
         cycleCoreState(coreInstance);

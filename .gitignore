@@ -78,4 +78,6 @@ appsettings.Production.json
 *.db
 *.db-shm
 *.db-wal
+*.db.bak
+*.bak
 export/
